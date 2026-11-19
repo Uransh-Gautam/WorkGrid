@@ -97,33 +97,180 @@ SELECT id,name,role FROM employee WHERE manager_id IS NULL ORDER BY name;
 SELECT m.id,m.name manager,COUNT(e.id) direct_reports FROM employee m JOIN employee e ON e.manager_id=m.id
 GROUP BY m.id,m.name ORDER BY direct_reports DESC,m.name;
 -- ===================== 5. APPROVAL WORKFLOW =====================
--- 5.1 Submit a proposed allocation change (set :allocation_id,:requester_id,:proposed_employee_id,:proposed_project_id,:proposed_hours,:proposed_start_date,:proposed_end_date)
-INSERT INTO approval_request(allocation_id,requested_by,requested_employee_id,requested_project_id,requested_hours_allocated,requested_start_date,requested_end_date)
-VALUES(:allocation_id,:requester_id,:proposed_employee_id,:proposed_project_id,:proposed_hours,:proposed_start_date,:proposed_end_date)
-RETURNING id,status,created_at;
--- 5.2 Pending requests with requester and manager
-SELECT r.id request_id,req.name requester,mgr.name requester_manager,r.allocation_id,r.requested_employee_id,r.requested_project_id,
- r.requested_hours_allocated,r.requested_start_date,r.requested_end_date,r.created_at,NOW()-r.created_at waiting_for
-FROM approval_request r JOIN employee req ON req.id=r.requested_by LEFT JOIN employee mgr ON mgr.id=req.manager_id
-WHERE r.status='pending' ORDER BY r.created_at;
--- 5.3 Reject pending request (set :request_id,:manager_id); validate manager authority in application layer
-UPDATE approval_request SET status='rejected',approved_by=:manager_id WHERE id=:request_id AND status='pending' AND requested_by<>:manager_id;
--- 5.4 Approve request and apply its stored proposal. Run as a transaction; inspect returned rows before COMMIT.
-BEGIN;
-WITH approved AS (UPDATE approval_request SET status='approved',approved_by=:manager_id
- WHERE id=:request_id AND status='pending' AND requested_by<>:manager_id RETURNING allocation_id,requested_employee_id,requested_project_id,requested_hours_allocated,requested_start_date,requested_end_date)
-UPDATE allocation a SET employee_id=x.requested_employee_id,project_id=x.requested_project_id,hours_allocated=x.requested_hours_allocated,
- start_date=x.requested_start_date,end_date=x.requested_end_date
-FROM approved x WHERE a.id=x.allocation_id AND a.status='active';
--- If the above UPDATE affects zero rows, ROLLBACK instead of COMMIT. Application code must verify row counts.
-INSERT INTO allocation_history(allocation_id,change_type) VALUES(:allocation_id,'updated');
-COMMIT;
--- 5.5 Close an active allocation and log (set :allocation_id)
-BEGIN;
-UPDATE allocation SET status='closed',end_date=COALESCE(end_date,CURRENT_DATE) WHERE id=:allocation_id AND status='active';
-INSERT INTO allocation_history(allocation_id,change_type) VALUES(:allocation_id,'closed');
-COMMIT;
--- 5.6 Update active allocation hours and log (set :allocation_id,:new_hours)
-BEGIN;
-UPDATE allocation SET hours_allocated=:new_hours WHERE id=:allocation_id AND status='active';
-INSERT INTO allocation_history(allocation_id,change_type) VALUES(:allocation_id,'updated');
+
+-- 5.1 Submit a proposed allocation change
+-- Set: :allocation_id, :requester_id, :proposed_employee_id,
+--      :proposed_project_id, :proposed_hours,
+--      :proposed_start_date, :proposed_end_date
+
+INSERT INTO approval_request (
+    allocation_id,
+    requested_by,
+    requested_employee_id,
+    requested_project_id,
+    requested_hours_allocated,
+    requested_start_date,
+    requested_end_date
+)
+VALUES (
+    :allocation_id,
+    :requester_id,
+    :proposed_employee_id,
+    :proposed_project_id,
+    :proposed_hours,
+    :proposed_start_date,
+    :proposed_end_date
+)
+RETURNING id, status, created_at;
+
+
+-- 5.2 Pending approval requests with requester and reporting manager
+
+SELECT
+    r.id AS request_id,
+    req.name AS requester,
+    mgr.name AS requester_manager,
+    r.allocation_id,
+    r.requested_employee_id,
+    proposed_emp.name AS proposed_employee,
+    r.requested_project_id,
+    proposed_proj.name AS proposed_project,
+    r.requested_hours_allocated,
+    r.requested_start_date,
+    r.requested_end_date,
+    r.created_at,
+    NOW() - r.created_at AS waiting_for
+FROM approval_request r
+JOIN employee req
+    ON req.id = r.requested_by
+LEFT JOIN employee mgr
+    ON mgr.id = req.manager_id
+LEFT JOIN employee proposed_emp
+    ON proposed_emp.id = r.requested_employee_id
+LEFT JOIN project proposed_proj
+    ON proposed_proj.id = r.requested_project_id
+WHERE r.status = 'pending'
+ORDER BY r.created_at;
+
+
+-- 5.3 Reject a pending request
+-- Set: :request_id, :manager_id
+-- Manager authorization must be validated by the application layer.
+
+UPDATE approval_request
+SET
+    status = 'rejected',
+    approved_by = :manager_id
+WHERE id = :request_id
+  AND status = 'pending'
+  AND requested_by <> :manager_id
+RETURNING id, status, approved_by;
+
+
+-- 5.4 Approve a pending request and apply the proposed allocation change
+-- Set: :request_id, :manager_id
+-- This statement is atomic. A history row is inserted only if the
+-- allocation update actually succeeds.
+
+WITH target_allocation AS (
+    SELECT id
+    FROM allocation
+    WHERE id = (
+        SELECT allocation_id
+        FROM approval_request
+        WHERE id = :request_id
+          AND status = 'pending'
+    )
+      AND status = 'active'
+    FOR UPDATE
+),
+approved_request AS (
+    UPDATE approval_request r
+    SET
+        status = 'approved',
+        approved_by = :manager_id
+    WHERE r.id = :request_id
+      AND r.status = 'pending'
+      AND r.requested_by <> :manager_id
+      AND EXISTS (
+          SELECT 1
+          FROM target_allocation t
+          WHERE t.id = r.allocation_id
+      )
+    RETURNING
+        r.allocation_id,
+        r.requested_employee_id,
+        r.requested_project_id,
+        r.requested_hours_allocated,
+        r.requested_start_date,
+        r.requested_end_date
+),
+updated_allocation AS (
+    UPDATE allocation a
+    SET
+        employee_id = r.requested_employee_id,
+        project_id = r.requested_project_id,
+        hours_allocated = r.requested_hours_allocated,
+        start_date = r.requested_start_date,
+        end_date = r.requested_end_date
+    FROM approved_request r
+    WHERE a.id = r.allocation_id
+      AND a.status = 'active'
+    RETURNING a.id
+),
+logged_change AS (
+    INSERT INTO allocation_history (allocation_id, change_type)
+    SELECT id, 'updated'
+    FROM updated_allocation
+    RETURNING allocation_id
+)
+SELECT
+    allocation_id,
+    'approved and allocation updated' AS result
+FROM logged_change;
+
+
+-- 5.5 Close an active allocation and record its closure
+-- Set: :allocation_id
+
+WITH closed_allocation AS (
+    UPDATE allocation
+    SET
+        status = 'closed',
+        end_date = COALESCE(end_date, CURRENT_DATE)
+    WHERE id = :allocation_id
+      AND status = 'active'
+    RETURNING id
+),
+logged_closure AS (
+    INSERT INTO allocation_history (allocation_id, change_type)
+    SELECT id, 'closed'
+    FROM closed_allocation
+    RETURNING allocation_id
+)
+SELECT
+    allocation_id,
+    'allocation closed successfully' AS result
+FROM logged_closure;
+
+
+-- 5.6 Update active allocation hours and record the change
+-- Set: :allocation_id, :new_hours
+
+WITH updated_allocation AS (
+    UPDATE allocation
+    SET hours_allocated = :new_hours
+    WHERE id = :allocation_id
+      AND status = 'active'
+    RETURNING id
+),
+logged_change AS (
+    INSERT INTO allocation_history (allocation_id, change_type)
+    SELECT id, 'updated'
+    FROM updated_allocation
+    RETURNING allocation_id
+)
+SELECT
+    allocation_id,
+    'allocation hours updated successfully' AS result
+FROM logged_change;
