@@ -1,4 +1,4 @@
-# WorkGrid — Entity Relationship Diagram (ERD)
+# WorkGrid - Entity Relationship Diagram (ERD)
 
 **Project:** WorkGrid  
 **Team:** T0085  
@@ -8,9 +8,9 @@
 
 ## 1. Overview
 
-WorkGrid is an employee workload and project allocation management system. It manages departments, employees, projects, project allocations, allocation history, performance reviews, and approval requests.
+WorkGrid is an employee workload and project allocation management system designed to manage departments, employees, projects, allocations, allocation history, performance reviews, and approval requests.
 
-The database consists of seven entities connected through primary keys and foreign keys.
+This ER diagram represents the relational database structure implemented in `03_schema.sql`. It illustrates the entities, attributes, primary keys, foreign keys, and relationships that form the WorkGrid database.
 
 ## 2. Entity Relationship Diagram
 
@@ -18,122 +18,123 @@ The database consists of seven entities connected through primary keys and forei
 erDiagram
     DEPARTMENT ||--o{ EMPLOYEE : contains
     EMPLOYEE o|--o{ EMPLOYEE : manages
-    EMPLOYEE ||--o{ ALLOCATION : assigned
-    PROJECT ||--o{ ALLOCATION : receives
-    ALLOCATION ||--o{ APPROVAL_REQUEST : has
+    EMPLOYEE ||--o{ ALLOCATION : assigned_to
+    PROJECT ||--o{ ALLOCATION : includes
+    ALLOCATION ||--o{ ALLOCATION_HISTORY : has_history
+    EMPLOYEE ||--o{ PERFORMANCE_REVIEW : receives
     EMPLOYEE ||--o{ APPROVAL_REQUEST : requests
     EMPLOYEE o|--o{ APPROVAL_REQUEST : approves
-    PROJECT ||--o{ APPROVAL_REQUEST : proposed_for
-    ALLOCATION ||--o{ ALLOCATION_HISTORY : tracks
-    EMPLOYEE o|--o{ ALLOCATION_HISTORY : changes
-    APPROVAL_REQUEST o|--o{ ALLOCATION_HISTORY : generates
-    EMPLOYEE ||--o{ PERFORMANCE_REVIEW : receives
 
     DEPARTMENT {
-        bigint department_id PK
-        varchar name
+        int id PK
+        varchar name UK
     }
 
     EMPLOYEE {
-        bigint employee_id PK
+        int id PK
         varchar name
         varchar role
-        bigint department_id FK
-        bigint manager_id FK
+        int department_id FK
+        int manager_id FK
     }
 
     PROJECT {
-        bigint project_id PK
-        varchar name
+        int id PK
+        varchar name UK
         varchar status
         varchar priority
     }
 
     ALLOCATION {
-        bigint allocation_id PK
-        bigint employee_id FK
-        bigint project_id FK
+        int id PK
+        int employee_id FK
+        int project_id FK
         date start_date
         date end_date
         int hours_allocated
         varchar status
     }
 
-    APPROVAL_REQUEST {
-        bigint request_id PK
-        bigint allocation_id FK
-        bigint requested_by FK
-        bigint approved_by FK
-        bigint proposed_project_id FK
-        int proposed_hours_allocated
-        date proposed_start_date
-        date proposed_end_date
-        varchar status
-        timestamp created_at
-        timestamp decided_at
-    }
-
     ALLOCATION_HISTORY {
-        bigint history_id PK
-        bigint allocation_id FK
-        bigint changed_by FK
-        bigint approval_request_id FK
+        int id PK
+        int allocation_id FK
         varchar change_type
-        int previous_hours
-        int new_hours
-        varchar previous_status
-        varchar new_status
         timestamp changed_at
     }
 
     PERFORMANCE_REVIEW {
-        bigint review_id PK
-        bigint employee_id FK
+        int id PK
+        int employee_id FK
         date review_date
         text notes
         int score
     }
+
+    APPROVAL_REQUEST {
+        int id PK
+        int requested_by FK
+        int approved_by FK
+        varchar status
+        timestamp created_at
+    }
 ```
 
-## 3. Entity Descriptions
+## 3. Entities and Their Purpose
 
 | Entity | Description |
 |---|---|
-| DEPARTMENT | Stores department details within the organization. |
-| EMPLOYEE | Stores employee details, department membership, and manager relationships. |
-| PROJECT | Stores project details, status, and priority. |
-| ALLOCATION | Connects employees with projects and tracks assigned hours and dates. |
-| APPROVAL_REQUEST | Records requests for allocation changes and approval decisions. |
-| ALLOCATION_HISTORY | Maintains records of allocation changes over time. |
-| PERFORMANCE_REVIEW | Stores employee performance evaluations and review details. |
+| DEPARTMENT | Stores department details and unique department names. |
+| EMPLOYEE | Stores employee details, department membership, and manager hierarchy. |
+| PROJECT | Stores project information, status, and priority. |
+| ALLOCATION | Assigns employees to projects and records allocation duration, hours, and status. |
+| ALLOCATION_HISTORY | Maintains a history of changes made to employee allocations. |
+| PERFORMANCE_REVIEW | Stores performance reviews, scores, and review notes for employees. |
+| APPROVAL_REQUEST | Records approval requests, requesters, approvers, and approval status. |
 
 ## 4. Relationships and Cardinality
 
-| Relationship | Cardinality | Explanation |
+| Relationship | Cardinality | Description |
 |---|---|---|
-| Department → Employee | 1:N | A department can have multiple employees. Each employee belongs to one department. |
-| Employee → Employee | 1:N | An employee may manage multiple employees. An employee may have one manager. |
-| Employee → Allocation | 1:N | An employee can have multiple allocations. |
-| Project → Allocation | 1:N | A project can have multiple employee allocations. |
-| Allocation → Approval Request | 1:N | An allocation can have multiple approval requests over time. |
-| Employee → Approval Request (requester) | 1:N | An employee can create multiple approval requests. |
-| Employee → Approval Request (approver) | 1:N | An employee can approve multiple requests. |
-| Project → Approval Request | 1:N | A project can be the proposed destination of multiple allocation requests. |
-| Allocation → Allocation History | 1:N | An allocation can have multiple historical change records. |
-| Employee → Allocation History | 1:N | An employee can make multiple allocation changes. |
-| Approval Request → Allocation History | 1:N | An approval request may result in historical allocation changes. |
-| Employee → Performance Review | 1:N | An employee can receive multiple performance reviews. |
+| DEPARTMENT → EMPLOYEE | One-to-Many | A department may contain multiple employees. Each employee belongs to one department. |
+| EMPLOYEE → EMPLOYEE | One-to-Many (Self-relationship) | An employee may manage multiple employees. An employee can have zero or one manager. |
+| EMPLOYEE → ALLOCATION | One-to-Many | An employee may have multiple project allocations. Each allocation belongs to one employee. |
+| PROJECT → ALLOCATION | One-to-Many | A project may have multiple allocations. Each allocation refers to one project. |
+| ALLOCATION → ALLOCATION_HISTORY | One-to-Many | An allocation can have multiple historical change records. |
+| EMPLOYEE → PERFORMANCE_REVIEW | One-to-Many | An employee may have multiple performance reviews. |
+| EMPLOYEE → APPROVAL_REQUEST (Requester) | One-to-Many | An employee can create multiple approval requests. |
+| EMPLOYEE → APPROVAL_REQUEST (Approver) | One-to-Many | An employee can approve multiple requests. An approval request may have no approver yet. |
 
-## 5. Design Considerations
+## 5. Database Constraints
 
-- Each entity has a primary key to uniquely identify its records.
-- Foreign keys establish relationships and enforce referential integrity.
-- The EMPLOYEE entity has a self-referencing manager_id to represent the organizational hierarchy.
-- ALLOCATION resolves the many-to-many relationship between EMPLOYEE and PROJECT.
-- APPROVAL_REQUEST records proposed changes before approval.
-- ALLOCATION_HISTORY maintains a historical record of allocation modifications.
-- PERFORMANCE_REVIEW allows multiple evaluations for an employee over time.
+The database uses the following integrity constraints:
 
-## 6. Conclusion
+- **Primary Keys:** Every entity has a unique identifier (`id`).
+- **Foreign Keys:** Maintain valid references between related entities.
+- **Unique Constraints:** Department names and project names must be unique.
+- **Employee Manager Constraint:** An employee cannot be their own manager.
+- **Project Status Constraint:** Projects must have a valid status.
+- **Project Priority Constraint:** Projects must have a valid priority.
+- **Allocation Hours Constraint:** Allocated hours must be greater than zero.
+- **Allocation Date Constraint:** The end date cannot precede the start date.
+- **Allocation Status Constraint:** Allocations must have an allowed status.
+- **Allocation History Constraint:** Change types must be valid.
+- **Performance Score Constraint:** Review scores must be between 1 and 10.
+- **Approval Status Constraint:** Approval requests must have an allowed status.
+- **Approval Constraint:** An employee cannot approve their own request.
 
-The WorkGrid ER diagram represents the logical structure of the database and the relationships between its seven entities. It provides a foundation for implementing the database in PostgreSQL while supporting employee management, project assignments, approval workflows, allocation history, and performance tracking.
+## 6. Design Considerations
+
+- The EMPLOYEE table contains a self-referencing foreign key (`manager_id`) to represent the reporting hierarchy.
+- ALLOCATION acts as the bridge between EMPLOYEE and PROJECT, allowing employees to work on multiple projects and projects to have multiple employees.
+- ALLOCATION_HISTORY stores historical allocation changes separately from current allocation data.
+- PERFORMANCE_REVIEW supports multiple review records for the same employee.
+- APPROVAL_REQUEST tracks requests and approval decisions through requester and approver references.
+- Foreign keys and constraints help maintain data consistency and integrity.
+
+## 7. Conclusion
+
+The WorkGrid ER diagram represents the database structure used for employee management, project management, workload allocation, allocation history, performance evaluation, and approval workflows.
+
+The design uses primary keys, foreign keys, relational cardinalities, and integrity constraints to maintain a consistent database structure. It provides a foundation for database implementation and SQL operations in PostgreSQL.
+
+The diagram is aligned with the current `03_schema.sql` implementation.
