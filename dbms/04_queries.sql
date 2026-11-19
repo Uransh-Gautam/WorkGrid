@@ -1,5 +1,4 @@
 -- =====================================================================
--- WorkGrid : 04_queries.sql
 -- PostgreSQL queries for employee workload and project allocation.
 -- Written against dbms/03_schema.sql (id, department_id, manager_id ...).
 --
