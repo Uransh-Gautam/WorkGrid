@@ -1,100 +1,149 @@
 # WorkGrid
 
-Tracks who is working on what, how loaded they are, and who approves the change.
+Tracks who is working on what, how loaded they are, and how allocation changes are managed.
 
 ## What This Is
 
-WorkGrid is a backend system for managing employee workload and project allocation. It answers three questions a manager asks every day: who is free, who is overloaded, and who should be assigned to what. Every assignment, reassignment, and approval is recorded in a relational database, so the system also keeps a full history of how the team's workload has changed over time.
+WorkGrid is an employee workload and project allocation management system designed to organize employees, departments, projects, and work allocations.
+
+It focuses on three key questions:
+
+- Who is currently assigned to work?
+- Who is available or overloaded?
+- How should project allocations and reassignment requests be managed?
+
+The system uses a relational database to store employee assignments, allocation details, performance reviews, and approval requests in a structured manner.
 
 ## Problem It Solves
 
-Teams often assign work informally, through chat messages or spreadsheets that go out of date quickly. There is no single place to see current workload, no record of why someone was moved off a project, and no approval step before a reassignment happens. WorkGrid replaces that with one system: a live view of allocation, a required approval step for changes, and a permanent history log.
+Teams often manage assignments through spreadsheets or informal communication, making it difficult to track workload accurately or maintain consistent records.
+
+WorkGrid provides a centralized database structure for employee allocation, project management, workload analysis, and allocation change requests. It is designed to improve visibility into team workload while maintaining relationships and data integrity through relational constraints.
 
 ## How It Works
 
-1. Employees are added to the system with a department and a reporting manager.
-2. A manager assigns an employee to a project, creating an allocation.
-3. The system tracks how many hours each employee is allocated across all active projects, and flags anyone overloaded or free.
-4. Reassigning an employee closes the old allocation, opens a new one, and requires manager approval before it takes effect.
-5. Every change is written to a history log, so past allocations are never lost, only closed.
-6. Performance reviews are logged separately and linked to the employee record.
+- Employees are associated with departments and reporting managers.
+- Projects are stored with their status and priority.
+- Employees are assigned to projects through allocation records.
+- Allocated working hours can be used to analyze employee workload.
+- Allocation change requests store proposed changes separately from existing allocation records.
+- Approval requests maintain their requester, approver, status, and proposed allocation details.
+- Allocation history records are maintained separately from current allocation data.
+- Performance reviews are stored independently and linked to employees.
 
 ## Features
 
-### Phase 1 (Mid-Semester)
+### Phase 1 — Core Database Design
 
-- Employee profiles with department and manager
+- Department and employee management structure
+- Employee reporting hierarchy through manager relationships
 - Project records with status and priority
-- Allocation form to assign an employee to a project
-- Filters by team, role, project stage, and workload
-- Dashboard showing active projects, free employees, and overloaded employees
+- Employee-project allocation management
+- Allocation duration, allocated hours, and status
+- Relational constraints and referential integrity
+- Workload-related SQL queries
+- Employee, project, and allocation filtering
 
-### Phase 2 (End-Semester)
+### Phase 2 — Extended Database Operations
 
-- Performance notes and monthly review records
-- Allocation history and transfer history
-- Department-wise reports
-- Transaction-safe reassignment (old allocation closed and new one opened as a single operation)
-- Approval flow for manager-initiated changes
-- Utilization rate, overdue work, and task closure analytics
+- Performance review records and score tracking
+- Allocation history records
+- Structured allocation change requests
+- Proposed employee, project, hours, and date changes
+- Approval and rejection status management
+- Transaction-oriented allocation reassignment operations
+- Department-wise workload reports
+- Employee workload and utilization analysis
 
 ## Tech Stack
 
 | Layer | Technology |
 |---|---|
-| Runtime | Node.js |
-| Framework | Express.js |
 | Database | PostgreSQL |
+| Query Language | SQL |
+| Database Design | ER Modeling, Relational Schema |
+| Database Concepts | Normalization, Functional Dependencies, Constraints |
+| Development Environment | Git, GitHub |
+
+### Planned Application Stack
+
+| Layer | Technology |
+|---|---|
+| Runtime | Node.js |
+| Backend Framework | Express.js |
 | ORM | Prisma |
-| Auth | JWT, password hashing, role-based access |
+| Authentication | JWT |
+| Password Security | Password Hashing |
 | Architecture | Routes → Controllers → Services → Repositories |
+
+The application stack represents the planned backend architecture for WorkGrid. The current project deliverables focus on the database design, schema, and SQL operations.
 
 ## System Architecture
 
 ```mermaid
 flowchart LR
-    Client[Client] --> Routes[Routes]
-    Routes --> MW[Middleware: auth, validation, errors]
+    Client[Client Application] --> Routes[Routes]
+    Routes --> MW[Middleware]
     MW --> Controllers[Controllers]
-    Controllers --> Services[Services: business logic]
-    Services --> Repositories[Repositories: Prisma queries]
+    Controllers --> Services[Services]
+    Services --> Repositories[Repositories]
     Repositories --> DB[(PostgreSQL)]
 ```
 
-Each layer has one job. Routes define endpoints. Middleware checks the request before it reaches business logic. Controllers handle the request and response. Services hold the actual rules, such as workload limits and approval checks. Repositories are the only layer that talks to the database.
+The proposed architecture separates responsibilities across different layers:
+
+- **Routes:** Define application endpoints.
+- **Middleware:** Handles request validation, authentication, and error processing.
+- **Controllers:** Manage incoming requests and outgoing responses.
+- **Services:** Contain business rules, workload logic, and approval workflows.
+- **Repositories:** Handle database access.
+- **Database:** Stores structured data and maintains relationships through constraints.
 
 ## Database Design
 
-The schema is built around one core relationship: an employee is linked to a project through an allocation, and every change to that allocation is logged.
+The database is organized around the allocation relationship between employees and projects.
+
+An employee can work on multiple projects, and a project can involve multiple employees. The ALLOCATION relation connects employees and projects while storing assignment-specific information such as allocated hours, dates, and status.
+
+Allocation change requests are maintained in APPROVAL_REQUEST, allowing proposed changes to be stored independently of the existing allocation.
+
+### Entity Relationship Diagram
 
 ```mermaid
 erDiagram
-    DEPARTMENT ||--o{ EMPLOYEE : has
-    EMPLOYEE ||--o{ EMPLOYEE : manages
+    DEPARTMENT ||--o{ EMPLOYEE : contains
+    EMPLOYEE o|--o{ EMPLOYEE : manages
     EMPLOYEE ||--o{ ALLOCATION : assigned_to
     PROJECT ||--o{ ALLOCATION : includes
-    ALLOCATION ||--o{ ALLOCATION_HISTORY : logs
+    ALLOCATION ||--o{ ALLOCATION_HISTORY : has_history
     EMPLOYEE ||--o{ PERFORMANCE_REVIEW : receives
+
     EMPLOYEE ||--o{ APPROVAL_REQUEST : requests
-    EMPLOYEE ||--o{ APPROVAL_REQUEST : approves
+    EMPLOYEE o|--o{ APPROVAL_REQUEST : approves
+    EMPLOYEE ||--o{ APPROVAL_REQUEST : proposed_assignee
+    PROJECT ||--o{ APPROVAL_REQUEST : proposed_project
+    ALLOCATION ||--o{ APPROVAL_REQUEST : change_requested_for
+
+    DEPARTMENT {
+        int id PK
+        varchar name UK
+    }
 
     EMPLOYEE {
         int id PK
-        string name
-        string role
+        varchar name
+        varchar role
         int department_id FK
         int manager_id FK
     }
-    DEPARTMENT {
-        int id PK
-        string name
-    }
+
     PROJECT {
         int id PK
-        string name
-        string status
-        string priority
+        varchar name UK
+        varchar status
+        varchar priority
     }
+
     ALLOCATION {
         int id PK
         int employee_id FK
@@ -102,14 +151,16 @@ erDiagram
         date start_date
         date end_date
         int hours_allocated
-        string status
+        varchar status
     }
+
     ALLOCATION_HISTORY {
         int id PK
         int allocation_id FK
-        string change_type
+        varchar change_type
         timestamp changed_at
     }
+
     PERFORMANCE_REVIEW {
         int id PK
         int employee_id FK
@@ -117,54 +168,66 @@ erDiagram
         text notes
         int score
     }
+
     APPROVAL_REQUEST {
         int id PK
+        int allocation_id FK
         int requested_by FK
         int approved_by FK
-        string status
+        int requested_employee_id FK
+        int requested_project_id FK
+        int requested_hours_allocated
+        date requested_start_date
+        date requested_end_date
+        varchar status
         timestamp created_at
     }
 ```
 
-The self-referencing relationship on `EMPLOYEE` (manager to employee) allows the reporting chain to be queried directly, without a separate table.
+The self-referencing relationship in EMPLOYEE represents the reporting hierarchy, while ALLOCATION acts as the bridge between EMPLOYEE and PROJECT.
 
-## Core Workflow: Allocation Lifecycle
+The database is designed with separate relations to reduce redundancy, maintain consistency, and support allocation-related queries and operations.
 
-```mermaid
-flowchart TD
-    A[Employee profile created] --> B[Manager submits allocation request]
-    B --> C{New assignment or reassignment}
-    C -->|New assignment| D[Allocation created directly]
-    C -->|Reassignment| E[Approval request created]
-    E --> F{Manager decision}
-    F -->|Approved| G[Old allocation closed]
-    G --> H[New allocation created]
-    H --> I[History entry logged]
-    F -->|Rejected| J[Request closed, no change]
-    D --> K[Workload recalculated]
-    H --> K
-    K --> L[Dashboard updated]
-```
+## Database Documentation
 
-A new assignment does not require approval. A reassignment does, since it affects an already-active allocation. Both paths end at the same workload calculation, which keeps the dashboard numbers accurate.
+The `dbms/` directory contains the database design and SQL deliverables.
+
+| File | Description |
+|---|---|
+| `01_normalization.md` | Normalization analysis covering 1NF, 2NF, 3NF, BCNF, and functional dependencies. |
+| `02_er_diagram.md` | Entity relationship diagram, entities, attributes, cardinalities, and constraints. |
+| `03_schema.sql` | SQL definitions for creating the WorkGrid database tables, constraints, and indexes. |
+| `04_queries.sql` | SQL queries for allocation operations, reporting, workload analysis, approval requests, and analytics. |
+
+## Core Database Operations
+
+The SQL deliverables are designed to support the following operations:
+
+- Retrieve employee allocation details.
+- Analyze employee workload across projects.
+- Identify available and overloaded employees based on allocation data.
+- Filter employees and projects based on relevant attributes.
+- Retrieve department-wise workload information.
+- Review performance review records.
+- Track allocation history.
+- Create and manage allocation change requests.
+- Process allocation-related changes through transaction-oriented SQL operations.
+- Generate workload and project allocation reports.
 
 ## Project Structure
 
+```text
+WorkGrid/
+├── dbms/
+│   ├── 01_normalization.md
+│   ├── 02_er_diagram.md
+│   ├── 03_schema.sql
+│   ├── 04_queries.sql
+│   └── README.md
+└── README.md
 ```
-workgrid/
-├── src/
-│   ├── routes/
-│   ├── controllers/
-│   ├── services/
-│   ├── repositories/
-│   ├── middlewares/
-│   └── prisma/
-├── prisma/
-│   ├── schema.prisma
-│   └── migrations/
-├── .env.example
-└── package.json
-```
+
+The current repository focuses on the DBMS/AP capstone deliverables. Backend application development can be built on top of the database design in a subsequent implementation phase.
 
 ## Team
 
@@ -174,3 +237,7 @@ workgrid/
 | Puneet | 2501010361 |
 | Varun Adwani | 2501010499 |
 | Shlok Srivastava | 2501010434 |
+
+---
+
+WorkGrid — Structured workload allocation, relational integrity, and database-driven team management.
