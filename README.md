@@ -234,7 +234,7 @@ The current repository focuses on the DBMS/AP capstone deliverables. Backend app
 | Name | Enrolment Number |
 |---|---|
 | Uransh | 2501010690 |
-| Puneet | 2501010361 |
+| Puneet Kumar | 2501010361 |
 | Varun Adwani | 2501010499 |
 | Shlok Srivastava | 2501010434 |
 
