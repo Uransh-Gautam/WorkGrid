@@ -1,0 +1,122 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta content="width=device-width, initial-scale=1.0" name="viewport">
+  <title>WorkGrid - Dashboard</title>
+  <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    body { font-family: 'Inter', sans-serif; }
+    .material-symbols-outlined { font-size: 18px; vertical-align: middle; }
+  </style>
+</head>
+<body class="bg-white text-[#1d1c16] antialiased min-h-screen">
+  <div class="pl-[240px] flex flex-col min-h-screen">
+    <main class="pt-16 pb-12 flex-1 px-8 max-w-[1140px] w-full mx-auto">
+      
+      <!-- Top Title & Action -->
+      <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-[#e9e9e7]">
+        <div>
+          <div class="text-[12px] text-[#787774] font-medium tracking-wide uppercase mb-1">
+            Executive Ledger • Real-time Capacity
+          </div>
+          <h1 class="text-[28px] font-bold text-[#1d1c16] tracking-tight">Dashboard</h1>
+        </div>
+        <a href="allocations.html?action=new" class="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-[4px] bg-[#005da9] hover:bg-[#004884] text-white text-[13px] font-medium transition-colors shadow-xs">
+          <span class="material-symbols-outlined text-[16px]">add</span>
+          <span>New allocation</span>
+        </a>
+      </div>
+
+      <!-- 3 Summary Stat Cards -->
+      <div id="stat-cards-container" class="grid grid-cols-1 md:grid-cols-3 gap-4 mt-6">
+        <!-- Active Projects -->
+        <div class="p-4 rounded-[6px] border border-[#e9e9e7] bg-white flex flex-col justify-between h-[116px]">
+          <div class="text-[12px] text-[#787774] font-medium flex items-center gap-1.5">
+            <span class="material-symbols-outlined text-[16px]">folder_open</span>
+            <span>Active Projects</span>
+          </div>
+          <div id="stat-active-projects" class="text-[28px] font-bold text-[#1d1c16]">
+            <span class="text-[14px] text-[#787774] font-normal">Loading...</span>
+          </div>
+        </div>
+
+        <!-- Free Employees -->
+        <div class="p-4 rounded-[6px] border border-[#e9e9e7] bg-white flex flex-col justify-between h-[116px]">
+          <div class="flex items-center justify-between">
+            <span class="text-[12px] text-[#787774] font-medium flex items-center gap-1.5">
+              <span class="material-symbols-outlined text-[16px]">person_check</span>
+              <span>Free Employees</span>
+            </span>
+            <span class="px-1.5 py-0.5 rounded text-[11px] font-medium bg-[#DBEDDB] text-[#1C3829]">
+              &lt;20h/wk
+            </span>
+          </div>
+          <div id="stat-free-employees" class="text-[28px] font-bold text-[#1d1c16]">
+            <span class="text-[14px] text-[#787774] font-normal">Loading...</span>
+          </div>
+        </div>
+
+        <!-- Overloaded Employees -->
+        <div class="p-4 rounded-[6px] border border-[#e9e9e7] bg-white flex flex-col justify-between h-[116px]">
+          <div class="flex items-center justify-between">
+            <span class="text-[12px] text-[#787774] font-medium flex items-center gap-1.5">
+              <span class="material-symbols-outlined text-[16px]">warning</span>
+              <span>Overloaded Employees</span>
+            </span>
+            <span class="px-1.5 py-0.5 rounded text-[11px] font-medium bg-[#FFE2DD] text-[#5D1715]">
+              &gt;40h/wk
+            </span>
+          </div>
+          <div id="stat-overloaded-employees" class="text-[28px] font-bold text-[#1d1c16]">
+            <span class="text-[14px] text-[#787774] font-normal">Loading...</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Workload by Employee Section -->
+      <section class="mt-8">
+        <div class="flex items-center justify-between border-b border-[#e9e9e7] pb-2 mb-3">
+          <div class="flex items-center gap-2">
+            <span class="text-[14px] font-semibold text-[#1d1c16]">Workload by employee</span>
+            <span id="workload-count" class="px-1.5 py-0.2 rounded text-[11px] font-medium bg-[#f3ede4] text-[#787774]">0</span>
+          </div>
+          <div class="flex items-center gap-3 text-[11px] text-[#787774]">
+            <span class="flex items-center gap-1"><span class="w-2 h-2 rounded-full bg-[#1C3829]"></span>Free (&lt;20h)</span>
+            <span class="flex items-center gap-1"><span class="w-2 h-2 rounded-full bg-[#005da9]"></span>Active (20-40h)</span>
+            <span class="flex items-center gap-1"><span class="w-2 h-2 rounded-full bg-[#ba1a1a]"></span>Overloaded (&gt;40h)</span>
+          </div>
+        </div>
+
+        <div id="workload-container" class="border border-[#e9e9e7] rounded-[4px] overflow-hidden bg-white">
+          <div class="p-8 text-center text-[#787774] text-[13px]">Loading employees and workloads...</div>
+        </div>
+      </section>
+
+      <!-- Pending Approvals Section -->
+      <section class="mt-8">
+        <div class="flex items-center justify-between border-b border-[#e9e9e7] pb-2 mb-3">
+          <div class="flex items-center gap-2">
+            <span class="text-[14px] font-semibold text-[#1d1c16]">Pending approvals</span>
+            <span id="pending-approvals-count" class="px-1.5 py-0.2 rounded text-[11px] font-medium bg-[#f3ede4] text-[#787774]">0</span>
+          </div>
+          <a href="approvals.html" class="text-[12px] text-[#005da9] hover:underline">View all approvals &rarr;</a>
+        </div>
+
+        <div id="pending-approvals-container" class="border border-[#e9e9e7] rounded-[4px] overflow-hidden bg-white divide-y divide-[#e9e9e7]">
+          <div class="p-6 text-center text-[#787774] text-[13px]">Loading pending approvals...</div>
+        </div>
+      </section>
+
+    </main>
+  </div>
+
+  <!-- Shared Scripts -->
+  <script src="js/api.js"></script>
+  <script src="js/layout.js"></script>
+  <!-- Page Logic -->
+  <script src="js/pages/dashboard.js"></script>
+</body>
+</html>

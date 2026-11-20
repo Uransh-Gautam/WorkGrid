@@ -1,0 +1,183 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta content="width=device-width, initial-scale=1.0" name="viewport">
+  <title>WorkGrid - Allocations</title>
+  <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    body { font-family: 'Inter', sans-serif; }
+    .material-symbols-outlined { font-size: 18px; vertical-align: middle; }
+  </style>
+</head>
+<body class="bg-white text-[#1d1c16] antialiased min-h-screen">
+  <div class="pl-[240px] flex flex-col min-h-screen">
+    <main class="pt-16 pb-12 flex-1 px-8 max-w-[1140px] w-full mx-auto">
+      
+      <!-- Top Title & Action -->
+      <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-[#e9e9e7]">
+        <div>
+          <div class="text-[12px] text-[#787774] font-medium tracking-wide uppercase mb-1">
+            Resource Commitment & Audit Ledger
+          </div>
+          <h1 class="text-[28px] font-bold text-[#1d1c16] tracking-tight">Allocations</h1>
+        </div>
+        <button id="open-new-allocation-modal-btn" class="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-[4px] bg-[#005da9] hover:bg-[#004884] text-white text-[13px] font-medium transition-colors shadow-xs">
+          <span class="material-symbols-outlined text-[16px]">add</span>
+          <span>New allocation</span>
+        </button>
+      </div>
+
+      <!-- Warning Toast Notification (if allocation exceeds capacity) -->
+      <div id="allocation-warning-toast" class="hidden mt-4 p-3 rounded-[6px] bg-[#FBF3DB] border border-[#F2C025] text-[#492F24] text-[13px] flex items-center justify-between">
+        <div class="flex items-center gap-2">
+          <span class="material-symbols-outlined text-[#845400]">warning</span>
+          <span id="allocation-warning-text"></span>
+        </div>
+        <button onclick="document.getElementById('allocation-warning-toast').classList.add('hidden')" class="text-[#492F24] hover:text-black">
+          <span class="material-symbols-outlined">close</span>
+        </button>
+      </div>
+
+      <!-- Tabs (Current / History) -->
+      <div class="flex items-center gap-6 mt-6 border-b border-[#e9e9e7]">
+        <button id="tab-current-btn" class="tab-btn pb-2.5 text-[14px] font-semibold text-[#005da9] border-b-2 border-[#005da9] flex items-center gap-2">
+          <span>Current</span>
+          <span id="tab-current-count" class="px-1.5 py-0.2 rounded text-[11px] font-medium bg-[#f3ede4] text-[#787774]">0</span>
+        </button>
+        <button id="tab-history-btn" class="tab-btn pb-2.5 text-[14px] font-medium text-[#787774] hover:text-[#1d1c16] flex items-center gap-2 border-b-2 border-transparent">
+          <span>History Log</span>
+          <span id="tab-history-count" class="px-1.5 py-0.2 rounded text-[11px] font-medium bg-[#f3ede4] text-[#787774]">0</span>
+        </button>
+      </div>
+
+      <!-- Allocations Content Area -->
+      <div class="mt-4 border border-[#e9e9e7] rounded-[4px] overflow-hidden bg-white" id="allocations-table-container">
+        <div class="p-8 text-center text-[#787774] text-[13px]">Loading allocations...</div>
+      </div>
+
+    </main>
+  </div>
+
+  <!-- Modal: Assign Employee to Project (New Allocation) -->
+  <div id="new-allocation-modal" class="fixed inset-0 bg-black/40 backdrop-blur-xs z-50 flex items-center justify-center hidden">
+    <div class="bg-white rounded-[8px] border border-[#e9e9e7] shadow-xl w-full max-w-md p-6">
+      <div class="flex items-center justify-between pb-3 border-b border-[#e9e9e7]">
+        <h3 class="text-[16px] font-semibold text-[#1d1c16]">Assign Employee to Project</h3>
+        <button id="close-allocation-modal-btn" class="text-[#787774] hover:text-[#1d1c16]">
+          <span class="material-symbols-outlined">close</span>
+        </button>
+      </div>
+
+      <form id="new-allocation-form" class="mt-4 flex flex-col gap-3">
+        <div>
+          <label class="block text-[12px] font-medium text-[#787774] mb-1">Employee</label>
+          <select name="employeeId" required id="alloc-modal-emp-select" class="w-full px-3 py-1.5 text-[13px] border border-[#e9e9e7] rounded-[4px] focus:outline-none focus:border-[#005da9] bg-white">
+            <option value="">Select employee...</option>
+          </select>
+        </div>
+
+        <div>
+          <label class="block text-[12px] font-medium text-[#787774] mb-1">Project</label>
+          <select name="projectId" required id="alloc-modal-proj-select" class="w-full px-3 py-1.5 text-[13px] border border-[#e9e9e7] rounded-[4px] focus:outline-none focus:border-[#005da9] bg-white">
+            <option value="">Select project...</option>
+          </select>
+        </div>
+
+        <div>
+          <label class="block text-[12px] font-medium text-[#787774] mb-1">Hours Per Week</label>
+          <input type="number" name="hoursPerWeek" id="alloc-modal-hours-input" required min="1" max="80" value="20" class="w-full px-3 py-1.5 text-[13px] border border-[#e9e9e7] rounded-[4px] focus:outline-none focus:border-[#005da9]">
+        </div>
+
+        <!-- Projected Load Box -->
+        <div id="projected-load-box" class="p-3 rounded-[4px] bg-[#f8f3ea] border border-[#e9e9e7] text-[12px]">
+          <div class="flex items-center justify-between text-[#787774]">
+            <span>Current Workload:</span>
+            <span id="proj-current-hours" class="font-medium text-[#1d1c16]">0 hrs</span>
+          </div>
+          <div class="flex items-center justify-between text-[#787774] mt-1">
+            <span>Additional Hours:</span>
+            <span id="proj-added-hours" class="font-medium text-[#1d1c16]">+20 hrs</span>
+          </div>
+          <div class="flex items-center justify-between border-t border-[#e9e9e7] pt-1.5 mt-1.5 font-semibold">
+            <span>Projected Workload:</span>
+            <span id="proj-total-hours" class="text-[#005da9]">20 / 40 hrs</span>
+          </div>
+          <div id="proj-warning-msg" class="hidden mt-2 p-1.5 rounded bg-[#FFE2DD] text-[#5D1715] text-[11px] font-medium">
+            Warning: Exceeds standard capacity (40h/wk)!
+          </div>
+        </div>
+
+        <div id="new-allocation-form-error" class="hidden text-[12px] text-[#ba1a1a] p-2 bg-[#fff8f7] rounded border border-[#ffdad6]"></div>
+
+        <div class="flex items-center justify-end gap-2 pt-3 border-t border-[#e9e9e7] mt-2">
+          <button type="button" id="cancel-allocation-modal-btn" class="px-3 py-1.5 rounded-[4px] text-[13px] font-medium text-[#787774] hover:bg-[#f3ede4]">
+            Cancel
+          </button>
+          <button type="submit" class="px-3.5 py-1.5 rounded-[4px] bg-[#005da9] hover:bg-[#004884] text-white text-[13px] font-medium">
+            Confirm Assignment
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Modal: Request Reassignment -->
+  <div id="reassign-modal" class="fixed inset-0 bg-black/40 backdrop-blur-xs z-50 flex items-center justify-center hidden">
+    <div class="bg-white rounded-[8px] border border-[#e9e9e7] shadow-xl w-full max-w-md p-6">
+      <div class="flex items-center justify-between pb-3 border-b border-[#e9e9e7]">
+        <h3 class="text-[16px] font-semibold text-[#1d1c16]">Request Reassignment</h3>
+        <button id="close-reassign-modal-btn" class="text-[#787774] hover:text-[#1d1c16]">
+          <span class="material-symbols-outlined">close</span>
+        </button>
+      </div>
+
+      <form id="reassign-form" class="mt-4 flex flex-col gap-3">
+        <input type="hidden" name="fromAllocationId" id="reassign-from-alloc-id">
+
+        <div class="p-3 bg-[#f8f3ea] rounded border border-[#e9e9e7] text-[12px]">
+          <div><strong class="text-[#787774]">Employee:</strong> <span id="reassign-emp-name" class="text-[#1d1c16] font-medium"></span></div>
+          <div class="mt-1"><strong class="text-[#787774]">Current Project:</strong> <span id="reassign-current-project" class="text-[#1d1c16]"></span></div>
+          <div class="mt-1"><strong class="text-[#787774]">Current Load:</strong> <span id="reassign-current-hours" class="text-[#1d1c16]"></span></div>
+        </div>
+
+        <div>
+          <label class="block text-[12px] font-medium text-[#787774] mb-1">Target Project</label>
+          <select name="toProjectId" required id="reassign-target-project-select" class="w-full px-3 py-1.5 text-[13px] border border-[#e9e9e7] rounded-[4px] focus:outline-none focus:border-[#005da9] bg-white">
+            <option value="">Select target project...</option>
+          </select>
+        </div>
+
+        <div>
+          <label class="block text-[12px] font-medium text-[#787774] mb-1">Allocated Hours on Target</label>
+          <input type="number" name="hoursPerWeek" id="reassign-hours-input" required min="1" max="80" class="w-full px-3 py-1.5 text-[13px] border border-[#e9e9e7] rounded-[4px] focus:outline-none focus:border-[#005da9]">
+        </div>
+
+        <div>
+          <label class="block text-[12px] font-medium text-[#787774] mb-1">Justification / Reason (Optional)</label>
+          <textarea name="justification" rows="2" class="w-full px-3 py-1.5 text-[13px] border border-[#e9e9e7] rounded-[4px] focus:outline-none focus:border-[#005da9]" placeholder="Explain why this reassignment is necessary..."></textarea>
+        </div>
+
+        <div id="reassign-form-error" class="hidden text-[12px] text-[#ba1a1a] p-2 bg-[#fff8f7] rounded border border-[#ffdad6]"></div>
+
+        <div class="flex items-center justify-end gap-2 pt-3 border-t border-[#e9e9e7] mt-2">
+          <button type="button" id="cancel-reassign-modal-btn" class="px-3 py-1.5 rounded-[4px] text-[13px] font-medium text-[#787774] hover:bg-[#f3ede4]">
+            Cancel
+          </button>
+          <button type="submit" class="px-3.5 py-1.5 rounded-[4px] bg-[#005da9] hover:bg-[#004884] text-white text-[13px] font-medium">
+            Submit Request
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Shared Scripts -->
+  <script src="js/api.js"></script>
+  <script src="js/layout.js"></script>
+  <!-- Page Logic -->
+  <script src="js/pages/allocations.js"></script>
+</body>
+</html>
