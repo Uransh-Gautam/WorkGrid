@@ -1,0 +1,105 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model Department {
+  id        Int        @id @default(autoincrement())
+  name      String     @unique
+  employees Employee[]
+}
+
+model Employee {
+  id           Int        @id @default(autoincrement())
+  name         String
+  email        String     @unique
+  role         String
+  capacity     Int        @default(40)
+  createdAt    DateTime   @default(now())
+
+  departmentId Int
+  department   Department @relation(fields: [departmentId], references: [id])
+
+  managerId    Int?
+  manager      Employee?  @relation("ManagerToReports", fields: [managerId], references: [id])
+  reports      Employee[] @relation("ManagerToReports")
+
+  allocations        Allocation[]
+  historyEntries     AllocationHistory[]
+  requestsAsEmployee ApprovalRequest[]   @relation("EmployeeRequests")
+  requestsMade       ApprovalRequest[]   @relation("Requester")
+  requestsDecided    ApprovalRequest[]   @relation("Decider")
+}
+
+model Project {
+  id          Int               @id @default(autoincrement())
+  name        String
+  status      String            // "Planning" | "In Progress" | "Completed"
+  createdAt   DateTime          @default(now())
+
+  allocations Allocation[]
+  requestsTo  ApprovalRequest[] @relation("ToProject")
+}
+
+model Allocation {
+  id           Int                 @id @default(autoincrement())
+  hoursPerWeek Int
+  status       String              // "Active" | "Closed"
+  startedAt    DateTime            @default(now())
+  endedAt      DateTime?
+
+  employeeId   Int
+  employee     Employee            @relation(fields: [employeeId], references: [id])
+
+  projectId    Int
+  project      Project             @relation(fields: [projectId], references: [id])
+
+  historyEntries AllocationHistory[]
+  requestsFrom   ApprovalRequest[]   @relation("FromAllocation")
+
+  @@index([employeeId, status])
+}
+
+model AllocationHistory {
+  id           Int        @id @default(autoincrement())
+  allocationId Int
+  allocation   Allocation @relation(fields: [allocationId], references: [id])
+
+  employeeId   Int
+  employee     Employee   @relation(fields: [employeeId], references: [id])
+
+  changeType   String     // "Created" | "Reassigned" | "Closed"
+  details      String
+  changedAt    DateTime   @default(now())
+}
+
+model ApprovalRequest {
+  id               Int         @id @default(autoincrement())
+  employeeId       Int
+  employee         Employee    @relation("EmployeeRequests", fields: [employeeId], references: [id])
+
+  fromAllocationId Int
+  fromAllocation   Allocation  @relation("FromAllocation", fields: [fromAllocationId], references: [id])
+
+  toProjectId      Int
+  toProject        Project     @relation("ToProject", fields: [toProjectId], references: [id])
+
+  hoursPerWeek     Int
+  justification    String?
+
+  requestedById    Int
+  requestedBy      Employee    @relation("Requester", fields: [requestedById], references: [id])
+
+  decidedById      Int?
+  decidedBy        Employee?   @relation("Decider", fields: [decidedById], references: [id])
+
+  status           String      @default("Pending") // "Pending" | "Approved" | "Rejected"
+  createdAt        DateTime    @default(now())
+  decidedAt        DateTime?
+
+  @@index([status])
+}
