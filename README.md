@@ -218,16 +218,26 @@ The SQL deliverables are designed to support the following operations:
 
 ```text
 WorkGrid/
+├── backend/
+│   ├── prisma/                     # Database schema & migrations
+│   ├── src/
+│   │   ├── config/                 # Prisma client connection
+│   │   ├── controllers/            # Request handlers & domain business logic
+│   │   ├── middlewares/            # Centralized error handler
+│   │   └── routes/                 # Express API routes
+│   └── server.js                   # Application server entrypoint
+├── frontend/                       # Vanilla JS & Tailwind UI dashboard
 ├── dbms/
 │   ├── 01_normalization.md
 │   ├── 02_er_diagram.md
 │   ├── 03_schema.sql
 │   ├── 04_queries.sql
 │   └── README.md
+├── README.app-guide.md             # Complete architecture & API documentation
 └── README.md
 ```
 
-The current repository focuses on the DBMS/AP capstone deliverables. Backend application development can be built on top of the database design in a subsequent implementation phase.
+Detailed architecture specifications, database transactional semantics, and API endpoint usage can be found in [README.app-guide.md](./README.app-guide.md).
 
 ## Team
 
