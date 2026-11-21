@@ -1,9 +1,4 @@
 // backend/src/controllers/allocation.controller.js
-/**
- * Allocation Controller (Atomic Allocations & ACID Transactions)
- * Domain: ACID Transactions, Approval Workflows & Dashboard KPIs
- * Author: Shlok Srivastava <shloksrivastava2610@gmail.com>
- */
 import prisma from '../config/db.js';
 import { AppError } from '../middlewares/errorHandler.js';
 

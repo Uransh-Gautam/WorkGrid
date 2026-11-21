@@ -2,7 +2,12 @@
 import express from 'express';
 import path from 'path';
 import { fileURLToPath } from 'url';
-import routes from './routes/index.js';
+import departmentRoutes from './routes/department.routes.js';
+import projectRoutes from './routes/project.routes.js';
+import employeeRoutes from './routes/employee.routes.js';
+import allocationRoutes from './routes/allocation.routes.js';
+import approvalRoutes from './routes/approval.routes.js';
+import dashboardRoutes from './routes/dashboard.routes.js';
 import { notFound, errorHandler } from './middlewares/errorHandler.js';
 
 const __filename = fileURLToPath(import.meta.url);
@@ -14,7 +19,12 @@ const app = express();
 app.use(express.json());
 
 // Mount API routes under /api
-app.use('/api', routes);
+app.use('/api', departmentRoutes);
+app.use('/api', projectRoutes);
+app.use('/api', employeeRoutes);
+app.use('/api', allocationRoutes);
+app.use('/api', approvalRoutes);
+app.use('/api', dashboardRoutes);
 
 // Serve frontend static assets (HTML, js/api.js, js/layout.js, js/pages/*)
 const frontendDir = path.join(__dirname, '../../frontend');
