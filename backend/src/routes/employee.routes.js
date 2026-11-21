@@ -1,4 +1,9 @@
 // backend/src/routes/employee.routes.js
+/**
+ * Employee Routes
+ * Domain: Core Workforce & Project Allocation Resources
+ * Author: Varun Adwani <varunadwani512@gmail.com>
+ */
 import express from 'express';
 import {
   getEmployees,

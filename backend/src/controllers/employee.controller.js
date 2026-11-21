@@ -1,4 +1,9 @@
 // backend/src/controllers/employee.controller.js
+/**
+ * Employee Controller with Workload Computation
+ * Domain: Core Workforce & Project Allocation Resources
+ * Author: Varun Adwani <varunadwani512@gmail.com>
+ */
 import prisma from '../config/db.js';
 import { AppError } from '../middlewares/errorHandler.js';
 
