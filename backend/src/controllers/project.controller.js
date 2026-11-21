@@ -1,4 +1,9 @@
 // backend/src/controllers/project.controller.js
+/**
+ * Project Controller
+ * Domain: Core Workforce & Project Allocation Resources
+ * Author: Varun Adwani <varunadwani512@gmail.com>
+ */
 import prisma from '../config/db.js';
 import { AppError } from '../middlewares/errorHandler.js';
 
