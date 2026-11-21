@@ -1,0 +1,118 @@
+================================================================================
+WorkGrid - Database Management Systems (CP4)
+Query: 1.6 - Dashboard summary statistics
+File: dbms/plans/06_dashboard_summary.txt
+Database: PostgreSQL
+================================================================================
+
+-- 1. SQL Query:
+SELECT (SELECT COUNT(*) FROM project WHERE status='active') active_projects,
+       (SELECT COUNT(*) FROM employee e WHERE NOT EXISTS(SELECT 1 FROM allocation a WHERE a.employee_id=e.id AND a.status='active')) free_employees,
+       (SELECT COUNT(*) FROM (SELECT employee_id FROM allocation WHERE status='active' GROUP BY employee_id HAVING SUM(hours_allocated)>40) x) overloaded_employees,
+       (SELECT COUNT(*) FROM approval_request WHERE status='pending') pending_requests;
+
+-- 2. Query Execution Plan (With Indexes):
+QUERY PLAN                                                               
+----------------------------------------------------------------------------------------------------------------------------------------
+ Result  (cost=48.43..48.44 rows=1 width=32) (actual time=0.131..0.131 rows=1.00 loops=1)
+   Buffers: shared hit=16
+   InitPlan 1
+     ->  Aggregate  (cost=1.80..1.81 rows=1 width=8) (actual time=0.006..0.006 rows=1.00 loops=1)
+           Buffers: shared hit=1
+           ->  Seq Scan on project  (cost=0.00..1.75 rows=20 width=0) (actual time=0.002..0.004 rows=20.00 loops=1)
+                 Filter: ((status)::text = 'active'::text)
+                 Rows Removed by Filter: 40
+                 Buffers: shared hit=1
+   InitPlan 2
+     ->  Aggregate  (cost=24.99..25.00 rows=1 width=8) (actual time=0.062..0.062 rows=1.00 loops=1)
+           Buffers: shared hit=8
+           ->  Hash Anti Join  (cost=17.54..24.96 rows=10 width=0) (actual time=0.045..0.061 rows=85.00 loops=1)
+                 Hash Cond: (e.id = a.employee_id)
+                 Buffers: shared hit=8
+                 ->  Seq Scan on employee e  (cost=0.00..5.50 rows=250 width=4) (actual time=0.001..0.006 rows=250.00 loops=1)
+                       Buffers: shared hit=3
+                 ->  Hash  (cost=12.50..12.50 rows=403 width=4) (actual time=0.040..0.040 rows=403.00 loops=1)
+                       Buckets: 1024  Batches: 1  Memory Usage: 23kB
+                       Buffers: shared hit=5
+                       ->  Seq Scan on allocation a  (cost=0.00..12.50 rows=403 width=4) (actual time=0.002..0.027 rows=403.00 loops=1)
+                             Filter: ((status)::text = 'active'::text)
+                             Rows Removed by Filter: 197
+                             Buffers: shared hit=5
+   InitPlan 3
+     ->  Aggregate  (cost=18.27..18.28 rows=1 width=8) (actual time=0.054..0.054 rows=1.00 loops=1)
+           Buffers: shared hit=5
+           ->  HashAggregate  (cost=14.52..17.33 rows=75 width=4) (actual time=0.045..0.052 rows=131.00 loops=1)
+                 Group Key: allocation.employee_id
+                 Filter: (sum(allocation.hours_allocated) > 40)
+                 Batches: 1  Memory Usage: 32kB
+                 Rows Removed by Filter: 34
+                 Buffers: shared hit=5
+                 ->  Seq Scan on allocation  (cost=0.00..12.50 rows=403 width=8) (actual time=0.001..0.023 rows=403.00 loops=1)
+                       Filter: ((status)::text = 'active'::text)
+                       Rows Removed by Filter: 197
+                       Buffers: shared hit=5
+   InitPlan 4
+     ->  Aggregate  (cost=3.33..3.34 rows=1 width=8) (actual time=0.007..0.007 rows=1.00 loops=1)
+           Buffers: shared hit=2
+           ->  Seq Scan on approval_request  (cost=0.00..3.25 rows=34 width=0) (actual time=0.002..0.006 rows=34.00 loops=1)
+                 Filter: ((status)::text = 'pending'::text)
+                 Rows Removed by Filter: 66
+                 Buffers: shared hit=2
+ Planning:
+   Buffers: shared hit=340
+ Planning Time: 0.711 ms
+ Execution Time: 0.172 ms
+(48 rows)
+
+-- 3. Query Execution Plan (Without Indexes - Baseline):
+QUERY PLAN                                                               
+----------------------------------------------------------------------------------------------------------------------------------------
+ Result  (cost=48.43..48.44 rows=1 width=32) (actual time=0.136..0.137 rows=1.00 loops=1)
+   Buffers: shared hit=16
+   InitPlan 1
+     ->  Aggregate  (cost=1.80..1.81 rows=1 width=8) (actual time=0.006..0.006 rows=1.00 loops=1)
+           Buffers: shared hit=1
+           ->  Seq Scan on project  (cost=0.00..1.75 rows=20 width=0) (actual time=0.002..0.005 rows=20.00 loops=1)
+                 Filter: ((status)::text = 'active'::text)
+                 Rows Removed by Filter: 40
+                 Buffers: shared hit=1
+   InitPlan 2
+     ->  Aggregate  (cost=24.99..25.00 rows=1 width=8) (actual time=0.064..0.065 rows=1.00 loops=1)
+           Buffers: shared hit=8
+           ->  Hash Anti Join  (cost=17.54..24.96 rows=10 width=0) (actual time=0.047..0.062 rows=85.00 loops=1)
+                 Hash Cond: (e.id = a.employee_id)
+                 Buffers: shared hit=8
+                 ->  Seq Scan on employee e  (cost=0.00..5.50 rows=250 width=4) (actual time=0.002..0.007 rows=250.00 loops=1)
+                       Buffers: shared hit=3
+                 ->  Hash  (cost=12.50..12.50 rows=403 width=4) (actual time=0.041..0.041 rows=403.00 loops=1)
+                       Buckets: 1024  Batches: 1  Memory Usage: 23kB
+                       Buffers: shared hit=5
+                       ->  Seq Scan on allocation a  (cost=0.00..12.50 rows=403 width=4) (actual time=0.002..0.027 rows=403.00 loops=1)
+                             Filter: ((status)::text = 'active'::text)
+                             Rows Removed by Filter: 197
+                             Buffers: shared hit=5
+   InitPlan 3
+     ->  Aggregate  (cost=18.27..18.28 rows=1 width=8) (actual time=0.058..0.058 rows=1.00 loops=1)
+           Buffers: shared hit=5
+           ->  HashAggregate  (cost=14.52..17.33 rows=75 width=4) (actual time=0.049..0.055 rows=131.00 loops=1)
+                 Group Key: allocation.employee_id
+                 Filter: (sum(allocation.hours_allocated) > 40)
+                 Batches: 1  Memory Usage: 32kB
+                 Rows Removed by Filter: 34
+                 Buffers: shared hit=5
+                 ->  Seq Scan on allocation  (cost=0.00..12.50 rows=403 width=8) (actual time=0.001..0.025 rows=403.00 loops=1)
+                       Filter: ((status)::text = 'active'::text)
+                       Rows Removed by Filter: 197
+                       Buffers: shared hit=5
+   InitPlan 4
+     ->  Aggregate  (cost=3.33..3.34 rows=1 width=8) (actual time=0.007..0.007 rows=1.00 loops=1)
+           Buffers: shared hit=2
+           ->  Seq Scan on approval_request  (cost=0.00..3.25 rows=34 width=0) (actual time=0.002..0.006 rows=34.00 loops=1)
+                 Filter: ((status)::text = 'pending'::text)
+                 Rows Removed by Filter: 66
+                 Buffers: shared hit=2
+ Planning:
+   Buffers: shared hit=340
+ Planning Time: 0.679 ms
+ Execution Time: 0.181 ms
+(48 rows)

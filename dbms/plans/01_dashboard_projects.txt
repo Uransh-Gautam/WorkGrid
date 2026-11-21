@@ -1,0 +1,76 @@
+================================================================================
+WorkGrid - Database Management Systems (CP4)
+Query: 1.1 - Active projects ranked by priority
+File: dbms/plans/01_dashboard_projects.txt
+Database: PostgreSQL
+================================================================================
+
+-- 1. SQL Query:
+SELECT p.id, p.name, p.priority, COUNT(a.id) AS active_allocations,
+       COALESCE(SUM(a.hours_allocated),0) AS allocated_hours
+FROM project p LEFT JOIN allocation a ON a.project_id=p.id AND a.status='active'
+WHERE p.status='active'
+GROUP BY p.id,p.name,p.priority
+ORDER BY CASE p.priority WHEN 'critical' THEN 1 WHEN 'high' THEN 2 WHEN 'medium' THEN 3 ELSE 4 END,p.name;
+
+-- 2. Query Execution Plan (With Indexes):
+QUERY PLAN                                                             
+-----------------------------------------------------------------------------------------------------------------------------------
+ Sort  (cost=17.42..17.47 rows=20 width=53) (actual time=0.093..0.094 rows=20.00 loops=1)
+   Sort Key: (CASE p.priority WHEN 'critical'::text THEN 1 WHEN 'high'::text THEN 2 WHEN 'medium'::text THEN 3 ELSE 4 END), p.name
+   Sort Method: quicksort  Memory: 26kB
+   Buffers: shared hit=12
+   ->  HashAggregate  (cost=16.64..16.99 rows=20 width=53) (actual time=0.076..0.078 rows=20.00 loops=1)
+         Group Key: p.name
+         Batches: 1  Memory Usage: 32kB
+         Buffers: shared hit=6
+         ->  Hash Right Join  (cost=2.00..15.64 rows=134 width=41) (actual time=0.017..0.061 rows=143.00 loops=1)
+               Hash Cond: (a.project_id = p.id)
+               Buffers: shared hit=6
+               ->  Seq Scan on allocation a  (cost=0.00..12.50 rows=403 width=12) (actual time=0.003..0.029 rows=403.00 loops=1)
+                     Filter: ((status)::text = 'active'::text)
+                     Rows Removed by Filter: 197
+                     Buffers: shared hit=5
+               ->  Hash  (cost=1.75..1.75 rows=20 width=33) (actual time=0.010..0.010 rows=20.00 loops=1)
+                     Buckets: 1024  Batches: 1  Memory Usage: 10kB
+                     Buffers: shared hit=1
+                     ->  Seq Scan on project p  (cost=0.00..1.75 rows=20 width=33) (actual time=0.003..0.005 rows=20.00 loops=1)
+                           Filter: ((status)::text = 'active'::text)
+                           Rows Removed by Filter: 40
+                           Buffers: shared hit=1
+ Planning:
+   Buffers: shared hit=209
+ Planning Time: 0.442 ms
+ Execution Time: 0.121 ms
+(26 rows)
+
+-- 3. Query Execution Plan (Without Indexes - Baseline):
+QUERY PLAN                                                             
+-----------------------------------------------------------------------------------------------------------------------------------
+ Sort  (cost=17.42..17.47 rows=20 width=53) (actual time=0.105..0.106 rows=20.00 loops=1)
+   Sort Key: (CASE p.priority WHEN 'critical'::text THEN 1 WHEN 'high'::text THEN 2 WHEN 'medium'::text THEN 3 ELSE 4 END), p.name
+   Sort Method: quicksort  Memory: 26kB
+   Buffers: shared hit=12
+   ->  HashAggregate  (cost=16.64..16.99 rows=20 width=53) (actual time=0.084..0.087 rows=20.00 loops=1)
+         Group Key: p.name
+         Batches: 1  Memory Usage: 32kB
+         Buffers: shared hit=6
+         ->  Hash Right Join  (cost=2.00..15.64 rows=134 width=41) (actual time=0.018..0.068 rows=143.00 loops=1)
+               Hash Cond: (a.project_id = p.id)
+               Buffers: shared hit=6
+               ->  Seq Scan on allocation a  (cost=0.00..12.50 rows=403 width=12) (actual time=0.003..0.032 rows=403.00 loops=1)
+                     Filter: ((status)::text = 'active'::text)
+                     Rows Removed by Filter: 197
+                     Buffers: shared hit=5
+               ->  Hash  (cost=1.75..1.75 rows=20 width=33) (actual time=0.011..0.011 rows=20.00 loops=1)
+                     Buckets: 1024  Batches: 1  Memory Usage: 10kB
+                     Buffers: shared hit=1
+                     ->  Seq Scan on project p  (cost=0.00..1.75 rows=20 width=33) (actual time=0.004..0.006 rows=20.00 loops=1)
+                           Filter: ((status)::text = 'active'::text)
+                           Rows Removed by Filter: 40
+                           Buffers: shared hit=1
+ Planning:
+   Buffers: shared hit=209
+ Planning Time: 0.460 ms
+ Execution Time: 0.138 ms
+(26 rows)

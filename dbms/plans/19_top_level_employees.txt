@@ -1,0 +1,43 @@
+================================================================================
+WorkGrid - Database Management Systems (CP4)
+Query: 4.4 - Top-level employees (no manager)
+File: dbms/plans/19_top_level_employees.txt
+Database: PostgreSQL
+================================================================================
+
+-- 1. SQL Query:
+SELECT id,name,role FROM employee WHERE manager_id IS NULL ORDER BY name;
+
+-- 2. Query Execution Plan (With Indexes):
+QUERY PLAN                                                 
+------------------------------------------------------------------------------------------------------------
+ Sort  (cost=5.51..5.51 rows=1 width=37) (actual time=0.025..0.025 rows=1.00 loops=1)
+   Sort Key: name
+   Sort Method: quicksort  Memory: 25kB
+   Buffers: shared hit=6
+   ->  Seq Scan on employee  (cost=0.00..5.50 rows=1 width=37) (actual time=0.004..0.012 rows=1.00 loops=1)
+         Filter: (manager_id IS NULL)
+         Rows Removed by Filter: 249
+         Buffers: shared hit=3
+ Planning:
+   Buffers: shared hit=114
+ Planning Time: 0.181 ms
+ Execution Time: 0.037 ms
+(12 rows)
+
+-- 3. Query Execution Plan (Without Indexes - Baseline):
+QUERY PLAN                                                 
+------------------------------------------------------------------------------------------------------------
+ Sort  (cost=5.51..5.51 rows=1 width=37) (actual time=0.028..0.028 rows=1.00 loops=1)
+   Sort Key: name
+   Sort Method: quicksort  Memory: 25kB
+   Buffers: shared hit=6
+   ->  Seq Scan on employee  (cost=0.00..5.50 rows=1 width=37) (actual time=0.003..0.016 rows=1.00 loops=1)
+         Filter: (manager_id IS NULL)
+         Rows Removed by Filter: 249
+         Buffers: shared hit=3
+ Planning:
+   Buffers: shared hit=114
+ Planning Time: 0.163 ms
+ Execution Time: 0.039 ms
+(12 rows)

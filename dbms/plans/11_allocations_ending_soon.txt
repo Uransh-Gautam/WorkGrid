@@ -1,0 +1,76 @@
+================================================================================
+WorkGrid - Database Management Systems (CP4)
+Query: 2.6 - Allocations ending soon (next 14 days)
+File: dbms/plans/11_allocations_ending_soon.txt
+Database: PostgreSQL
+================================================================================
+
+-- 1. SQL Query:
+SELECT a.id,e.name employee,p.name project,a.end_date FROM allocation a JOIN employee e ON e.id=a.employee_id JOIN project p ON p.id=a.project_id
+WHERE a.status='active' AND a.end_date BETWEEN CURRENT_DATE AND CURRENT_DATE+14 ORDER BY a.end_date;
+
+-- 2. Query Execution Plan (With Indexes):
+QUERY PLAN                                                              
+--------------------------------------------------------------------------------------------------------------------------------------
+ Sort  (cost=33.33..33.49 rows=66 width=47) (actual time=0.090..0.091 rows=58.00 loops=1)
+   Sort Key: a.end_date
+   Sort Method: quicksort  Memory: 28kB
+   Buffers: shared hit=12
+   ->  Hash Join  (cost=10.97..31.33 rows=66 width=47) (actual time=0.042..0.080 rows=58.00 loops=1)
+         Hash Cond: (a.project_id = p.id)
+         Buffers: shared hit=9
+         ->  Hash Join  (cost=8.62..28.80 rows=66 width=28) (actual time=0.027..0.061 rows=58.00 loops=1)
+               Hash Cond: (a.employee_id = e.id)
+               Buffers: shared hit=8
+               ->  Seq Scan on allocation a  (cost=0.00..20.00 rows=66 width=16) (actual time=0.003..0.034 rows=58.00 loops=1)
+                     Filter: (((status)::text = 'active'::text) AND (end_date >= CURRENT_DATE) AND (end_date <= (CURRENT_DATE + 14)))
+                     Rows Removed by Filter: 542
+                     Buffers: shared hit=5
+               ->  Hash  (cost=5.50..5.50 rows=250 width=20) (actual time=0.021..0.021 rows=250.00 loops=1)
+                     Buckets: 1024  Batches: 1  Memory Usage: 22kB
+                     Buffers: shared hit=3
+                     ->  Seq Scan on employee e  (cost=0.00..5.50 rows=250 width=20) (actual time=0.002..0.010 rows=250.00 loops=1)
+                           Buffers: shared hit=3
+         ->  Hash  (cost=1.60..1.60 rows=60 width=27) (actual time=0.011..0.011 rows=60.00 loops=1)
+               Buckets: 1024  Batches: 1  Memory Usage: 12kB
+               Buffers: shared hit=1
+               ->  Seq Scan on project p  (cost=0.00..1.60 rows=60 width=27) (actual time=0.002..0.004 rows=60.00 loops=1)
+                     Buffers: shared hit=1
+ Planning:
+   Buffers: shared hit=348
+ Planning Time: 0.549 ms
+ Execution Time: 0.108 ms
+(28 rows)
+
+-- 3. Query Execution Plan (Without Indexes - Baseline):
+QUERY PLAN                                                              
+--------------------------------------------------------------------------------------------------------------------------------------
+ Sort  (cost=33.33..33.49 rows=66 width=47) (actual time=0.087..0.088 rows=58.00 loops=1)
+   Sort Key: a.end_date
+   Sort Method: quicksort  Memory: 28kB
+   Buffers: shared hit=12
+   ->  Hash Join  (cost=10.97..31.33 rows=66 width=47) (actual time=0.040..0.077 rows=58.00 loops=1)
+         Hash Cond: (a.project_id = p.id)
+         Buffers: shared hit=9
+         ->  Hash Join  (cost=8.62..28.80 rows=66 width=28) (actual time=0.026..0.061 rows=58.00 loops=1)
+               Hash Cond: (a.employee_id = e.id)
+               Buffers: shared hit=8
+               ->  Seq Scan on allocation a  (cost=0.00..20.00 rows=66 width=16) (actual time=0.003..0.033 rows=58.00 loops=1)
+                     Filter: (((status)::text = 'active'::text) AND (end_date >= CURRENT_DATE) AND (end_date <= (CURRENT_DATE + 14)))
+                     Rows Removed by Filter: 542
+                     Buffers: shared hit=5
+               ->  Hash  (cost=5.50..5.50 rows=250 width=20) (actual time=0.021..0.021 rows=250.00 loops=1)
+                     Buckets: 1024  Batches: 1  Memory Usage: 22kB
+                     Buffers: shared hit=3
+                     ->  Seq Scan on employee e  (cost=0.00..5.50 rows=250 width=20) (actual time=0.002..0.009 rows=250.00 loops=1)
+                           Buffers: shared hit=3
+         ->  Hash  (cost=1.60..1.60 rows=60 width=27) (actual time=0.010..0.010 rows=60.00 loops=1)
+               Buckets: 1024  Batches: 1  Memory Usage: 12kB
+               Buffers: shared hit=1
+               ->  Seq Scan on project p  (cost=0.00..1.60 rows=60 width=27) (actual time=0.002..0.004 rows=60.00 loops=1)
+                     Buffers: shared hit=1
+ Planning:
+   Buffers: shared hit=348
+ Planning Time: 0.544 ms
+ Execution Time: 0.105 ms
+(28 rows)

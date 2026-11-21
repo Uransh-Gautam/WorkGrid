@@ -1,0 +1,79 @@
+================================================================================
+WorkGrid - Database Management Systems (CP4)
+Query: 1.3 - Free employees identification
+File: dbms/plans/03_free_employees.txt
+Database: PostgreSQL
+================================================================================
+
+-- 1. SQL Query:
+SELECT e.id,e.name,e.role,d.name department FROM employee e JOIN department d ON d.id=e.department_id
+WHERE NOT EXISTS (SELECT 1 FROM allocation a WHERE a.employee_id=e.id AND a.status='active') ORDER BY d.name,e.name;
+
+-- 2. Query Execution Plan (With Indexes):
+QUERY PLAN                                                                     
+----------------------------------------------------------------------------------------------------------------------------------------------------
+ Sort  (cost=26.56..26.59 rows=10 width=56) (actual time=0.148..0.149 rows=85.00 loops=1)
+   Sort Key: d.name, e.name
+   Sort Method: quicksort  Memory: 31kB
+   Buffers: shared hit=23
+   ->  Nested Loop  (cost=17.68..26.40 rows=10 width=56) (actual time=0.057..0.088 rows=85.00 loops=1)
+         Buffers: shared hit=20
+         ->  Hash Anti Join  (cost=17.54..24.96 rows=10 width=41) (actual time=0.054..0.072 rows=85.00 loops=1)
+               Hash Cond: (e.id = a.employee_id)
+               Buffers: shared hit=8
+               ->  Seq Scan on employee e  (cost=0.00..5.50 rows=250 width=41) (actual time=0.003..0.009 rows=250.00 loops=1)
+                     Buffers: shared hit=3
+               ->  Hash  (cost=12.50..12.50 rows=403 width=4) (actual time=0.048..0.048 rows=403.00 loops=1)
+                     Buckets: 1024  Batches: 1  Memory Usage: 23kB
+                     Buffers: shared hit=5
+                     ->  Seq Scan on allocation a  (cost=0.00..12.50 rows=403 width=4) (actual time=0.003..0.029 rows=403.00 loops=1)
+                           Filter: ((status)::text = 'active'::text)
+                           Rows Removed by Filter: 197
+                           Buffers: shared hit=5
+         ->  Memoize  (cost=0.14..0.21 rows=1 width=23) (actual time=0.000..0.000 rows=1.00 loops=85)
+               Cache Key: e.department_id
+               Cache Mode: logical
+               Hits: 79  Misses: 6  Evictions: 0  Overflows: 0  Memory Usage: 1kB
+               Buffers: shared hit=12
+               ->  Index Scan using department_pkey on department d  (cost=0.13..0.20 rows=1 width=23) (actual time=0.000..0.000 rows=1.00 loops=6)
+                     Index Cond: (id = e.department_id)
+                     Index Searches: 6
+                     Buffers: shared hit=12
+ Planning:
+   Buffers: shared hit=313
+ Planning Time: 0.561 ms
+ Execution Time: 0.177 ms
+(31 rows)
+
+-- 3. Query Execution Plan (Without Indexes - Baseline):
+QUERY PLAN                                                              
+--------------------------------------------------------------------------------------------------------------------------------------
+ Sort  (cost=26.31..26.34 rows=10 width=56) (actual time=0.138..0.139 rows=85.00 loops=1)
+   Sort Key: d.name, e.name
+   Sort Method: quicksort  Memory: 31kB
+   Buffers: shared hit=12
+   ->  Hash Join  (cost=18.67..26.15 rows=10 width=56) (actual time=0.054..0.077 rows=85.00 loops=1)
+         Hash Cond: (e.department_id = d.id)
+         Buffers: shared hit=9
+         ->  Hash Anti Join  (cost=17.54..24.96 rows=10 width=41) (actual time=0.045..0.063 rows=85.00 loops=1)
+               Hash Cond: (e.id = a.employee_id)
+               Buffers: shared hit=8
+               ->  Seq Scan on employee e  (cost=0.00..5.50 rows=250 width=41) (actual time=0.002..0.008 rows=250.00 loops=1)
+                     Buffers: shared hit=3
+               ->  Hash  (cost=12.50..12.50 rows=403 width=4) (actual time=0.042..0.042 rows=403.00 loops=1)
+                     Buckets: 1024  Batches: 1  Memory Usage: 23kB
+                     Buffers: shared hit=5
+                     ->  Seq Scan on allocation a  (cost=0.00..12.50 rows=403 width=4) (actual time=0.003..0.029 rows=403.00 loops=1)
+                           Filter: ((status)::text = 'active'::text)
+                           Rows Removed by Filter: 197
+                           Buffers: shared hit=5
+         ->  Hash  (cost=1.06..1.06 rows=6 width=23) (actual time=0.006..0.006 rows=6.00 loops=1)
+               Buckets: 1024  Batches: 1  Memory Usage: 9kB
+               Buffers: shared hit=1
+               ->  Seq Scan on department d  (cost=0.00..1.06 rows=6 width=23) (actual time=0.002..0.002 rows=6.00 loops=1)
+                     Buffers: shared hit=1
+ Planning:
+   Buffers: shared hit=313
+ Planning Time: 0.506 ms
+ Execution Time: 0.160 ms
+(28 rows)

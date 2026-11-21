@@ -1,0 +1,75 @@
+================================================================================
+WorkGrid - Database Management Systems (CP4)
+Query: 4.3 - Chain upward from employee to top manager
+File: dbms/plans/18_recursive_chain_upward.txt
+Database: PostgreSQL
+================================================================================
+
+-- 1. SQL Query:
+WITH RECURSIVE chain AS (SELECT id,name,manager_id,0 steps FROM employee WHERE id=22
+ UNION ALL SELECT m.id,m.name,m.manager_id,c.steps+1 FROM employee m JOIN chain c ON c.manager_id=m.id)
+SELECT steps,id,name,manager_id FROM chain ORDER BY steps;
+
+-- 2. Query Execution Plan (With Indexes):
+QUERY PLAN                                                              
+-------------------------------------------------------------------------------------------------------------------------------------
+ Sort  (cost=81.39..81.64 rows=101 width=330) (actual time=0.078..0.079 rows=5.00 loops=1)
+   Sort Key: chain.steps
+   Sort Method: quicksort  Memory: 25kB
+   Buffers: shared hit=18
+   CTE chain
+     ->  Recursive Union  (cost=0.00..76.01 rows=101 width=28) (actual time=0.005..0.069 rows=5.00 loops=1)
+           Storage: Memory  Maximum Storage: 33kB
+           Buffers: shared hit=15
+           ->  Seq Scan on employee  (cost=0.00..6.12 rows=1 width=28) (actual time=0.005..0.010 rows=1.00 loops=1)
+                 Filter: (id = 22)
+                 Rows Removed by Filter: 249
+                 Buffers: shared hit=3
+           ->  Hash Join  (cost=0.33..6.89 rows=10 width=28) (actual time=0.002..0.011 rows=0.80 loops=5)
+                 Hash Cond: (m.id = c.manager_id)
+                 Buffers: shared hit=12
+                 ->  Seq Scan on employee m  (cost=0.00..5.50 rows=250 width=24) (actual time=0.000..0.006 rows=250.00 loops=4)
+                       Buffers: shared hit=12
+                 ->  Hash  (cost=0.20..0.20 rows=10 width=8) (actual time=0.001..0.001 rows=0.80 loops=5)
+                       Buckets: 1024  Batches: 1  Memory Usage: 9kB
+                       ->  WorkTable Scan on chain c  (cost=0.00..0.20 rows=10 width=8) (actual time=0.000..0.000 rows=1.00 loops=5)
+   ->  CTE Scan on chain  (cost=0.00..2.02 rows=101 width=330) (actual time=0.006..0.071 rows=5.00 loops=1)
+         Storage: Memory  Maximum Storage: 17kB
+         Buffers: shared hit=15
+ Planning:
+   Buffers: shared hit=106
+ Planning Time: 0.221 ms
+ Execution Time: 0.104 ms
+(27 rows)
+
+-- 3. Query Execution Plan (Without Indexes - Baseline):
+QUERY PLAN                                                              
+-------------------------------------------------------------------------------------------------------------------------------------
+ Sort  (cost=81.39..81.64 rows=101 width=330) (actual time=0.087..0.087 rows=5.00 loops=1)
+   Sort Key: chain.steps
+   Sort Method: quicksort  Memory: 25kB
+   Buffers: shared hit=18
+   CTE chain
+     ->  Recursive Union  (cost=0.00..76.01 rows=101 width=28) (actual time=0.005..0.079 rows=5.00 loops=1)
+           Storage: Memory  Maximum Storage: 33kB
+           Buffers: shared hit=15
+           ->  Seq Scan on employee  (cost=0.00..6.12 rows=1 width=28) (actual time=0.004..0.010 rows=1.00 loops=1)
+                 Filter: (id = 22)
+                 Rows Removed by Filter: 249
+                 Buffers: shared hit=3
+           ->  Hash Join  (cost=0.33..6.89 rows=10 width=28) (actual time=0.002..0.013 rows=0.80 loops=5)
+                 Hash Cond: (m.id = c.manager_id)
+                 Buffers: shared hit=12
+                 ->  Seq Scan on employee m  (cost=0.00..5.50 rows=250 width=24) (actual time=0.000..0.006 rows=250.00 loops=4)
+                       Buffers: shared hit=12
+                 ->  Hash  (cost=0.20..0.20 rows=10 width=8) (actual time=0.001..0.001 rows=0.80 loops=5)
+                       Buckets: 1024  Batches: 1  Memory Usage: 9kB
+                       ->  WorkTable Scan on chain c  (cost=0.00..0.20 rows=10 width=8) (actual time=0.000..0.000 rows=1.00 loops=5)
+   ->  CTE Scan on chain  (cost=0.00..2.02 rows=101 width=330) (actual time=0.006..0.080 rows=5.00 loops=1)
+         Storage: Memory  Maximum Storage: 17kB
+         Buffers: shared hit=15
+ Planning:
+   Buffers: shared hit=106
+ Planning Time: 0.251 ms
+ Execution Time: 0.113 ms
+(27 rows)

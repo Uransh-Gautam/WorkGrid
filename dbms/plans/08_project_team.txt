@@ -1,0 +1,66 @@
+================================================================================
+WorkGrid - Database Management Systems (CP4)
+Query: 2.2 - Project team roster and allocated hours
+File: dbms/plans/08_project_team.txt
+Database: PostgreSQL
+================================================================================
+
+-- 1. SQL Query:
+SELECT e.id,e.name,e.role,a.hours_allocated,a.start_date,a.end_date FROM allocation a JOIN employee e ON e.id=a.employee_id
+WHERE a.project_id=1 AND a.status='active' ORDER BY e.name;
+
+-- 2. Query Execution Plan (With Indexes):
+QUERY PLAN                                                                      
+------------------------------------------------------------------------------------------------------------------------------------------------------
+ Sort  (cost=17.95..17.98 rows=11 width=49) (actual time=0.050..0.051 rows=13.00 loops=1)
+   Sort Key: e.name
+   Sort Method: quicksort  Memory: 25kB
+   Buffers: shared hit=12
+   ->  Hash Join  (cost=9.65..17.76 rows=11 width=49) (actual time=0.020..0.033 rows=13.00 loops=1)
+         Hash Cond: (e.id = a.employee_id)
+         Buffers: shared hit=9
+         ->  Seq Scan on employee e  (cost=0.00..5.50 rows=250 width=37) (actual time=0.002..0.008 rows=250.00 loops=1)
+               Buffers: shared hit=3
+         ->  Hash  (cost=9.51..9.51 rows=11 width=16) (actual time=0.015..0.015 rows=13.00 loops=1)
+               Buckets: 1024  Batches: 1  Memory Usage: 9kB
+               Buffers: shared hit=6
+               ->  Bitmap Heap Scan on allocation a  (cost=4.27..9.51 rows=11 width=16) (actual time=0.008..0.011 rows=13.00 loops=1)
+                     Recheck Cond: (project_id = 1)
+                     Filter: ((status)::text = 'active'::text)
+                     Rows Removed by Filter: 3
+                     Heap Blocks: exact=5
+                     Buffers: shared hit=6
+                     ->  Bitmap Index Scan on idx_allocation_project  (cost=0.00..4.27 rows=16 width=0) (actual time=0.003..0.003 rows=16.00 loops=1)
+                           Index Cond: (project_id = 1)
+                           Index Searches: 1
+                           Buffers: shared hit=1
+ Planning:
+   Buffers: shared hit=281
+ Planning Time: 0.389 ms
+ Execution Time: 0.071 ms
+(26 rows)
+
+-- 3. Query Execution Plan (Without Indexes - Baseline):
+QUERY PLAN                                                           
+-------------------------------------------------------------------------------------------------------------------------------
+ Sort  (cost=22.44..22.47 rows=11 width=49) (actual time=0.066..0.067 rows=13.00 loops=1)
+   Sort Key: e.name
+   Sort Method: quicksort  Memory: 25kB
+   Buffers: shared hit=11
+   ->  Hash Join  (cost=14.14..22.25 rows=11 width=49) (actual time=0.034..0.046 rows=13.00 loops=1)
+         Hash Cond: (e.id = a.employee_id)
+         Buffers: shared hit=8
+         ->  Seq Scan on employee e  (cost=0.00..5.50 rows=250 width=37) (actual time=0.002..0.009 rows=250.00 loops=1)
+               Buffers: shared hit=3
+         ->  Hash  (cost=14.00..14.00 rows=11 width=16) (actual time=0.026..0.026 rows=13.00 loops=1)
+               Buckets: 1024  Batches: 1  Memory Usage: 9kB
+               Buffers: shared hit=5
+               ->  Seq Scan on allocation a  (cost=0.00..14.00 rows=11 width=16) (actual time=0.004..0.022 rows=13.00 loops=1)
+                     Filter: ((project_id = 1) AND ((status)::text = 'active'::text))
+                     Rows Removed by Filter: 587
+                     Buffers: shared hit=5
+ Planning:
+   Buffers: shared hit=281
+ Planning Time: 0.402 ms
+ Execution Time: 0.091 ms
+(20 rows)

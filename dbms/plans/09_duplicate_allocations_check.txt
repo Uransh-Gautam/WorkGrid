@@ -1,0 +1,47 @@
+================================================================================
+WorkGrid - Database Management Systems (CP4)
+Query: 2.3 - Duplicate active allocations check
+File: dbms/plans/09_duplicate_allocations_check.txt
+Database: PostgreSQL
+================================================================================
+
+-- 1. SQL Query:
+SELECT employee_id,project_id,COUNT(*) duplicate_count FROM allocation WHERE status='active' GROUP BY employee_id,project_id HAVING COUNT(*)>1;
+
+-- 2. Query Execution Plan (With Indexes):
+QUERY PLAN                                                    
+------------------------------------------------------------------------------------------------------------------
+ HashAggregate  (cost=15.52..18.34 rows=75 width=16) (actual time=0.078..0.078 rows=0.00 loops=1)
+   Group Key: employee_id, project_id
+   Filter: (count(*) > 1)
+   Batches: 1  Memory Usage: 64kB
+   Rows Removed by Filter: 403
+   Buffers: shared hit=5
+   ->  Seq Scan on allocation  (cost=0.00..12.50 rows=403 width=8) (actual time=0.004..0.033 rows=403.00 loops=1)
+         Filter: ((status)::text = 'active'::text)
+         Rows Removed by Filter: 197
+         Buffers: shared hit=5
+ Planning:
+   Buffers: shared hit=137
+ Planning Time: 0.214 ms
+ Execution Time: 0.102 ms
+(14 rows)
+
+-- 3. Query Execution Plan (Without Indexes - Baseline):
+QUERY PLAN                                                    
+------------------------------------------------------------------------------------------------------------------
+ HashAggregate  (cost=15.52..18.34 rows=75 width=16) (actual time=0.080..0.080 rows=0.00 loops=1)
+   Group Key: employee_id, project_id
+   Filter: (count(*) > 1)
+   Batches: 1  Memory Usage: 64kB
+   Rows Removed by Filter: 403
+   Buffers: shared hit=5
+   ->  Seq Scan on allocation  (cost=0.00..12.50 rows=403 width=8) (actual time=0.004..0.036 rows=403.00 loops=1)
+         Filter: ((status)::text = 'active'::text)
+         Rows Removed by Filter: 197
+         Buffers: shared hit=5
+ Planning:
+   Buffers: shared hit=137
+ Planning Time: 0.214 ms
+ Execution Time: 0.104 ms
+(14 rows)

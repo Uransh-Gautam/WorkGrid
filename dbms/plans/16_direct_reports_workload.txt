@@ -1,0 +1,73 @@
+================================================================================
+WorkGrid - Database Management Systems (CP4)
+Query: 4.1 - Direct reports and active hours
+File: dbms/plans/16_direct_reports_workload.txt
+Database: PostgreSQL
+================================================================================
+
+-- 1. SQL Query:
+SELECT e.id,e.name,e.role,COALESCE(SUM(a.hours_allocated),0) active_hours FROM employee e
+LEFT JOIN allocation a ON a.employee_id=e.id AND a.status='active' WHERE e.manager_id=2
+GROUP BY e.id,e.name,e.role ORDER BY e.name;
+
+-- 2. Query Execution Plan (With Indexes):
+QUERY PLAN                                                            
+----------------------------------------------------------------------------------------------------------------------------------
+ Sort  (cost=21.05..21.11 rows=25 width=45) (actual time=0.101..0.102 rows=25.00 loops=1)
+   Sort Key: e.name
+   Sort Method: quicksort  Memory: 26kB
+   Buffers: shared hit=11
+   ->  HashAggregate  (cost=20.22..20.47 rows=25 width=45) (actual time=0.075..0.077 rows=25.00 loops=1)
+         Group Key: e.id
+         Batches: 1  Memory Usage: 32kB
+         Buffers: shared hit=8
+         ->  Hash Right Join  (cost=6.44..20.02 rows=40 width=41) (actual time=0.027..0.069 rows=53.00 loops=1)
+               Hash Cond: (a.employee_id = e.id)
+               Buffers: shared hit=8
+               ->  Seq Scan on allocation a  (cost=0.00..12.50 rows=403 width=8) (actual time=0.003..0.029 rows=403.00 loops=1)
+                     Filter: ((status)::text = 'active'::text)
+                     Rows Removed by Filter: 197
+                     Buffers: shared hit=5
+               ->  Hash  (cost=6.12..6.12 rows=25 width=37) (actual time=0.019..0.019 rows=25.00 loops=1)
+                     Buckets: 1024  Batches: 1  Memory Usage: 10kB
+                     Buffers: shared hit=3
+                     ->  Seq Scan on employee e  (cost=0.00..6.12 rows=25 width=37) (actual time=0.005..0.014 rows=25.00 loops=1)
+                           Filter: (manager_id = 2)
+                           Rows Removed by Filter: 225
+                           Buffers: shared hit=3
+ Planning:
+   Buffers: shared hit=207
+ Planning Time: 0.435 ms
+ Execution Time: 0.130 ms
+(26 rows)
+
+-- 3. Query Execution Plan (Without Indexes - Baseline):
+QUERY PLAN                                                            
+----------------------------------------------------------------------------------------------------------------------------------
+ Sort  (cost=21.05..21.11 rows=25 width=45) (actual time=0.102..0.103 rows=25.00 loops=1)
+   Sort Key: e.name
+   Sort Method: quicksort  Memory: 26kB
+   Buffers: shared hit=11
+   ->  HashAggregate  (cost=20.22..20.47 rows=25 width=45) (actual time=0.076..0.078 rows=25.00 loops=1)
+         Group Key: e.id
+         Batches: 1  Memory Usage: 32kB
+         Buffers: shared hit=8
+         ->  Hash Right Join  (cost=6.44..20.02 rows=40 width=41) (actual time=0.024..0.071 rows=53.00 loops=1)
+               Hash Cond: (a.employee_id = e.id)
+               Buffers: shared hit=8
+               ->  Seq Scan on allocation a  (cost=0.00..12.50 rows=403 width=8) (actual time=0.002..0.029 rows=403.00 loops=1)
+                     Filter: ((status)::text = 'active'::text)
+                     Rows Removed by Filter: 197
+                     Buffers: shared hit=5
+               ->  Hash  (cost=6.12..6.12 rows=25 width=37) (actual time=0.018..0.018 rows=25.00 loops=1)
+                     Buckets: 1024  Batches: 1  Memory Usage: 10kB
+                     Buffers: shared hit=3
+                     ->  Seq Scan on employee e  (cost=0.00..6.12 rows=25 width=37) (actual time=0.004..0.012 rows=25.00 loops=1)
+                           Filter: (manager_id = 2)
+                           Rows Removed by Filter: 225
+                           Buffers: shared hit=3
+ Planning:
+   Buffers: shared hit=207
+ Planning Time: 0.419 ms
+ Execution Time: 0.131 ms
+(26 rows)

@@ -1,0 +1,59 @@
+================================================================================
+WorkGrid - Database Management Systems (CP4)
+Query: 3.1 - Filter employees by department
+File: dbms/plans/12_filter_by_department.txt
+Database: PostgreSQL
+================================================================================
+
+-- 1. SQL Query:
+SELECT e.id,e.name,e.role,d.name department FROM employee e JOIN department d ON d.id=e.department_id WHERE d.name='Platform Engineering' ORDER BY e.name;
+
+-- 2. Query Execution Plan (With Indexes):
+QUERY PLAN                                                         
+----------------------------------------------------------------------------------------------------------------------------
+ Sort  (cost=8.84..8.95 rows=42 width=56) (actual time=0.057..0.058 rows=44.00 loops=1)
+   Sort Key: e.name
+   Sort Method: quicksort  Memory: 28kB
+   Buffers: shared hit=7
+   ->  Hash Join  (cost=1.09..7.71 rows=42 width=56) (actual time=0.012..0.027 rows=44.00 loops=1)
+         Hash Cond: (e.department_id = d.id)
+         Buffers: shared hit=4
+         ->  Seq Scan on employee e  (cost=0.00..5.50 rows=250 width=41) (actual time=0.002..0.010 rows=250.00 loops=1)
+               Buffers: shared hit=3
+         ->  Hash  (cost=1.07..1.07 rows=1 width=23) (actual time=0.005..0.005 rows=1.00 loops=1)
+               Buckets: 1024  Batches: 1  Memory Usage: 9kB
+               Buffers: shared hit=1
+               ->  Seq Scan on department d  (cost=0.00..1.07 rows=1 width=23) (actual time=0.002..0.002 rows=1.00 loops=1)
+                     Filter: ((name)::text = 'Platform Engineering'::text)
+                     Rows Removed by Filter: 5
+                     Buffers: shared hit=1
+ Planning:
+   Buffers: shared hit=244
+ Planning Time: 0.317 ms
+ Execution Time: 0.076 ms
+(20 rows)
+
+-- 3. Query Execution Plan (Without Indexes - Baseline):
+QUERY PLAN                                                         
+----------------------------------------------------------------------------------------------------------------------------
+ Sort  (cost=8.84..8.95 rows=42 width=56) (actual time=0.058..0.059 rows=44.00 loops=1)
+   Sort Key: e.name
+   Sort Method: quicksort  Memory: 28kB
+   Buffers: shared hit=7
+   ->  Hash Join  (cost=1.09..7.71 rows=42 width=56) (actual time=0.012..0.028 rows=44.00 loops=1)
+         Hash Cond: (e.department_id = d.id)
+         Buffers: shared hit=4
+         ->  Seq Scan on employee e  (cost=0.00..5.50 rows=250 width=41) (actual time=0.002..0.009 rows=250.00 loops=1)
+               Buffers: shared hit=3
+         ->  Hash  (cost=1.07..1.07 rows=1 width=23) (actual time=0.006..0.006 rows=1.00 loops=1)
+               Buckets: 1024  Batches: 1  Memory Usage: 9kB
+               Buffers: shared hit=1
+               ->  Seq Scan on department d  (cost=0.00..1.07 rows=1 width=23) (actual time=0.002..0.002 rows=1.00 loops=1)
+                     Filter: ((name)::text = 'Platform Engineering'::text)
+                     Rows Removed by Filter: 5
+                     Buffers: shared hit=1
+ Planning:
+   Buffers: shared hit=244
+ Planning Time: 0.327 ms
+ Execution Time: 0.077 ms
+(20 rows)

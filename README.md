@@ -192,12 +192,14 @@ The database is designed with separate relations to reduce redundancy, maintain 
 
 The `dbms/` directory contains the database design and SQL deliverables.
 
-| File | Description |
-|---|---|
-| `01_normalization.md` | Normalization analysis covering 1NF, 2NF, 3NF, BCNF, and functional dependencies. |
-| `02_er_diagram.md` | Entity relationship diagram, entities, attributes, cardinalities, and constraints. |
-| `03_schema.sql` | SQL definitions for creating the WorkGrid database tables, constraints, and indexes. |
-| `04_queries.sql` | SQL queries for allocation operations, reporting, workload analysis, approval requests, and analytics. |
+| File | Description | Checkpoint |
+|---|---|---|
+| `01_normalization.md` | Normalization analysis covering 1NF, 2NF, 3NF, BCNF, and functional dependencies. | **CP1** |
+| `02_er_diagram.md` | Entity relationship diagram, entities, attributes, cardinalities, and constraints. | **CP2** |
+| `03_schema.sql` | SQL definitions for creating the WorkGrid database tables, constraints, and indexes. | **CP2** |
+| `04_queries.sql` | SQL queries for allocation operations, reporting, workload analysis, approval requests, and analytics. | **CP3** |
+| `05_query_timings.md` | Query performance benchmarks, execution plans, and cost analysis. | **CP4** |
+| `plans/` | Raw PostgreSQL EXPLAIN ANALYZE execution plan outputs for all benchmarked queries. | **CP4** |
 
 ## Core Database Operations
 
@@ -228,11 +230,15 @@ WorkGrid/
 │   └── server.js                   # Application server entrypoint
 ├── frontend/                       # Vanilla JS & Tailwind UI dashboard
 ├── dbms/
-│   ├── 01_normalization.md
-│   ├── 02_er_diagram.md
-│   ├── 03_schema.sql
-│   ├── 04_queries.sql
-│   └── README.md
+│   ├── plans/                      # Raw EXPLAIN ANALYZE execution plan artifacts (CP4)
+│   │   ├── 01_dashboard_projects.txt
+│   │   └── ... (21 execution plans)
+│   ├── 01_normalization.md         # Normalization analysis (CP1)
+│   ├── 02_er_diagram.md            # ER diagram & specification (CP2)
+│   ├── 03_schema.sql               # Database schema & indexes (CP2)
+│   ├── 04_queries.sql              # SQL query implementation (CP3)
+│   ├── 05_query_timings.md         # Query execution timings & benchmarks (CP4)
+│   └── README.md                   # DBMS deliverables index
 ├── README.app-guide.md             # Complete architecture & API documentation
 └── README.md
 ```

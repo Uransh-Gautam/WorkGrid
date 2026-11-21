@@ -1,0 +1,89 @@
+================================================================================
+WorkGrid - Database Management Systems (CP4)
+Query: 1.5 - Employees with spare capacity (1-39 hours)
+File: dbms/plans/05_spare_capacity_employees.txt
+Database: PostgreSQL
+================================================================================
+
+-- 1. SQL Query:
+SELECT e.id,e.name,d.name department,SUM(a.hours_allocated) active_hours,40-SUM(a.hours_allocated) spare_hours
+FROM employee e JOIN department d ON d.id=e.department_id JOIN allocation a ON a.employee_id=e.id AND a.status='active'
+GROUP BY e.id,e.name,d.name HAVING SUM(a.hours_allocated) BETWEEN 1 AND 39 ORDER BY spare_hours DESC;
+
+-- 2. Query Execution Plan (With Indexes):
+QUERY PLAN                                                                
+------------------------------------------------------------------------------------------------------------------------------------------
+ Sort  (cost=34.23..34.23 rows=2 width=55) (actual time=0.162..0.163 rows=31.00 loops=1)
+   Sort Key: ((40 - sum(a.hours_allocated))) DESC
+   Sort Method: quicksort  Memory: 27kB
+   Buffers: shared hit=12
+   ->  HashAggregate  (cost=28.17..34.22 rows=2 width=55) (actual time=0.144..0.152 rows=31.00 loops=1)
+         Group Key: e.id, d.name
+         Filter: ((sum(a.hours_allocated) >= 1) AND (sum(a.hours_allocated) <= 39))
+         Batches: 1  Memory Usage: 56kB
+         Rows Removed by Filter: 134
+         Buffers: shared hit=9
+         ->  Hash Join  (cost=9.76..25.14 rows=403 width=43) (actual time=0.037..0.109 rows=403.00 loops=1)
+               Hash Cond: (e.department_id = d.id)
+               Buffers: shared hit=9
+               ->  Hash Join  (cost=8.62..22.21 rows=403 width=28) (actual time=0.028..0.078 rows=403.00 loops=1)
+                     Hash Cond: (a.employee_id = e.id)
+                     Buffers: shared hit=8
+                     ->  Seq Scan on allocation a  (cost=0.00..12.50 rows=403 width=8) (actual time=0.003..0.028 rows=403.00 loops=1)
+                           Filter: ((status)::text = 'active'::text)
+                           Rows Removed by Filter: 197
+                           Buffers: shared hit=5
+                     ->  Hash  (cost=5.50..5.50 rows=250 width=24) (actual time=0.023..0.023 rows=250.00 loops=1)
+                           Buckets: 1024  Batches: 1  Memory Usage: 23kB
+                           Buffers: shared hit=3
+                           ->  Seq Scan on employee e  (cost=0.00..5.50 rows=250 width=24) (actual time=0.002..0.012 rows=250.00 loops=1)
+                                 Buffers: shared hit=3
+               ->  Hash  (cost=1.06..1.06 rows=6 width=23) (actual time=0.006..0.006 rows=6.00 loops=1)
+                     Buckets: 1024  Batches: 1  Memory Usage: 9kB
+                     Buffers: shared hit=1
+                     ->  Seq Scan on department d  (cost=0.00..1.06 rows=6 width=23) (actual time=0.002..0.002 rows=6.00 loops=1)
+                           Buffers: shared hit=1
+ Planning:
+   Buffers: shared hit=263
+ Planning Time: 0.538 ms
+ Execution Time: 0.199 ms
+(34 rows)
+
+-- 3. Query Execution Plan (Without Indexes - Baseline):
+QUERY PLAN                                                                
+------------------------------------------------------------------------------------------------------------------------------------------
+ Sort  (cost=34.23..34.23 rows=2 width=55) (actual time=0.164..0.164 rows=31.00 loops=1)
+   Sort Key: ((40 - sum(a.hours_allocated))) DESC
+   Sort Method: quicksort  Memory: 27kB
+   Buffers: shared hit=12
+   ->  HashAggregate  (cost=28.17..34.22 rows=2 width=55) (actual time=0.146..0.154 rows=31.00 loops=1)
+         Group Key: e.id, d.name
+         Filter: ((sum(a.hours_allocated) >= 1) AND (sum(a.hours_allocated) <= 39))
+         Batches: 1  Memory Usage: 56kB
+         Rows Removed by Filter: 134
+         Buffers: shared hit=9
+         ->  Hash Join  (cost=9.76..25.14 rows=403 width=43) (actual time=0.038..0.111 rows=403.00 loops=1)
+               Hash Cond: (e.department_id = d.id)
+               Buffers: shared hit=9
+               ->  Hash Join  (cost=8.62..22.21 rows=403 width=28) (actual time=0.029..0.079 rows=403.00 loops=1)
+                     Hash Cond: (a.employee_id = e.id)
+                     Buffers: shared hit=8
+                     ->  Seq Scan on allocation a  (cost=0.00..12.50 rows=403 width=8) (actual time=0.002..0.027 rows=403.00 loops=1)
+                           Filter: ((status)::text = 'active'::text)
+                           Rows Removed by Filter: 197
+                           Buffers: shared hit=5
+                     ->  Hash  (cost=5.50..5.50 rows=250 width=24) (actual time=0.023..0.023 rows=250.00 loops=1)
+                           Buckets: 1024  Batches: 1  Memory Usage: 23kB
+                           Buffers: shared hit=3
+                           ->  Seq Scan on employee e  (cost=0.00..5.50 rows=250 width=24) (actual time=0.002..0.011 rows=250.00 loops=1)
+                                 Buffers: shared hit=3
+               ->  Hash  (cost=1.06..1.06 rows=6 width=23) (actual time=0.006..0.006 rows=6.00 loops=1)
+                     Buckets: 1024  Batches: 1  Memory Usage: 9kB
+                     Buffers: shared hit=1
+                     ->  Seq Scan on department d  (cost=0.00..1.06 rows=6 width=23) (actual time=0.002..0.002 rows=6.00 loops=1)
+                           Buffers: shared hit=1
+ Planning:
+   Buffers: shared hit=263
+ Planning Time: 0.514 ms
+ Execution Time: 0.197 ms
+(34 rows)

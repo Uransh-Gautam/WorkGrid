@@ -1,0 +1,103 @@
+================================================================================
+WorkGrid - Database Management Systems (CP4)
+Query: 3.4 - Combined department, role, and workload filter
+File: dbms/plans/15_combined_filters.txt
+Database: PostgreSQL
+================================================================================
+
+-- 1. SQL Query:
+WITH employee_load AS (SELECT e.id,e.name,e.role,d.name department,COALESCE(SUM(a.hours_allocated),0) hours
+ FROM employee e JOIN department d ON d.id=e.department_id LEFT JOIN allocation a ON a.employee_id=e.id AND a.status='active'
+ GROUP BY e.id,e.name,e.role,d.name)
+SELECT *,CASE WHEN hours=0 THEN 'free' WHEN hours>40 THEN 'overloaded' ELSE 'normal' END workload
+FROM employee_load WHERE ('Platform Engineering'='' OR department='Platform Engineering') AND ('%Engineer%'='' OR role ILIKE '%Engineer%')
+AND ('normal'='' OR CASE WHEN hours=0 THEN 'free' WHEN hours>40 THEN 'overloaded' ELSE 'normal' END='normal')
+ORDER BY hours DESC,name;
+
+-- 2. Query Execution Plan (With Indexes):
+QUERY PLAN                                                                                                             
+------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+ Sort  (cost=23.00..23.01 rows=1 width=96) (actual time=0.168..0.169 rows=4.00 loops=1)
+   Sort Key: employee_load.hours DESC, employee_load.name
+   Sort Method: quicksort  Memory: 25kB
+   Buffers: shared hit=127
+   ->  Subquery Scan on employee_load  (cost=22.34..22.99 rows=1 width=96) (actual time=0.156..0.159 rows=4.00 loops=1)
+         Buffers: shared hit=121
+         ->  HashAggregate  (cost=22.34..22.99 rows=1 width=64) (actual time=0.154..0.157 rows=4.00 loops=1)
+               Group Key: e.id
+               Filter: (CASE WHEN (COALESCE(sum(a.hours_allocated), '0'::bigint) = 0) THEN 'free'::text WHEN (COALESCE(sum(a.hours_allocated), '0'::bigint) > 40) THEN 'overloaded'::text ELSE 'normal'::text END = 'normal'::text)
+               Batches: 1  Memory Usage: 32kB
+               Rows Removed by Filter: 22
+               Buffers: shared hit=121
+               ->  Nested Loop Left Join  (cost=1.36..22.16 rows=37 width=60) (actual time=0.015..0.145 rows=63.00 loops=1)
+                     Buffers: shared hit=121
+                     ->  Hash Join  (cost=1.09..7.83 rows=23 width=56) (actual time=0.012..0.112 rows=26.00 loops=1)
+                           Hash Cond: (e.department_id = d.id)
+                           Buffers: shared hit=4
+                           ->  Seq Scan on employee e  (cost=0.00..6.12 rows=139 width=41) (actual time=0.005..0.097 rows=149.00 loops=1)
+                                 Filter: ((role)::text ~~* '%Engineer%'::text)
+                                 Rows Removed by Filter: 101
+                                 Buffers: shared hit=3
+                           ->  Hash  (cost=1.07..1.07 rows=1 width=23) (actual time=0.003..0.003 rows=1.00 loops=1)
+                                 Buckets: 1024  Batches: 1  Memory Usage: 9kB
+                                 Buffers: shared hit=1
+                                 ->  Seq Scan on department d  (cost=0.00..1.07 rows=1 width=23) (actual time=0.001..0.002 rows=1.00 loops=1)
+                                       Filter: ((name)::text = 'Platform Engineering'::text)
+                                       Rows Removed by Filter: 5
+                                       Buffers: shared hit=1
+                     ->  Index Scan using idx_allocation_employee on allocation a  (cost=0.28..0.60 rows=2 width=8) (actual time=0.001..0.001 rows=2.38 loops=26)
+                           Index Cond: (employee_id = e.id)
+                           Filter: ((status)::text = 'active'::text)
+                           Rows Removed by Filter: 0
+                           Index Searches: 26
+                           Buffers: shared hit=117
+ Planning:
+   Buffers: shared hit=273
+ Planning Time: 0.840 ms
+ Execution Time: 0.206 ms
+(38 rows)
+
+-- 3. Query Execution Plan (Without Indexes - Baseline):
+QUERY PLAN                                                                                                             
+------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+ Sort  (cost=23.35..23.35 rows=1 width=96) (actual time=0.166..0.167 rows=4.00 loops=1)
+   Sort Key: employee_load.hours DESC, employee_load.name
+   Sort Method: quicksort  Memory: 25kB
+   Buffers: shared hit=15
+   ->  Subquery Scan on employee_load  (cost=22.69..23.34 rows=1 width=96) (actual time=0.157..0.159 rows=4.00 loops=1)
+         Buffers: shared hit=9
+         ->  HashAggregate  (cost=22.69..23.33 rows=1 width=64) (actual time=0.155..0.157 rows=4.00 loops=1)
+               Group Key: e.id
+               Filter: (CASE WHEN (COALESCE(sum(a.hours_allocated), '0'::bigint) = 0) THEN 'free'::text WHEN (COALESCE(sum(a.hours_allocated), '0'::bigint) > 40) THEN 'overloaded'::text ELSE 'normal'::text END = 'normal'::text)
+               Batches: 1  Memory Usage: 32kB
+               Rows Removed by Filter: 22
+               Buffers: shared hit=9
+               ->  Hash Right Join  (cost=8.12..22.50 rows=37 width=60) (actual time=0.109..0.147 rows=63.00 loops=1)
+                     Hash Cond: (a.employee_id = e.id)
+                     Buffers: shared hit=9
+                     ->  Seq Scan on allocation a  (cost=0.00..12.50 rows=403 width=8) (actual time=0.002..0.026 rows=403.00 loops=1)
+                           Filter: ((status)::text = 'active'::text)
+                           Rows Removed by Filter: 197
+                           Buffers: shared hit=5
+                     ->  Hash  (cost=7.83..7.83 rows=23 width=56) (actual time=0.103..0.103 rows=26.00 loops=1)
+                           Buckets: 1024  Batches: 1  Memory Usage: 11kB
+                           Buffers: shared hit=4
+                           ->  Hash Join  (cost=1.09..7.83 rows=23 width=56) (actual time=0.013..0.100 rows=26.00 loops=1)
+                                 Hash Cond: (e.department_id = d.id)
+                                 Buffers: shared hit=4
+                                 ->  Seq Scan on employee e  (cost=0.00..6.12 rows=139 width=41) (actual time=0.004..0.084 rows=149.00 loops=1)
+                                       Filter: ((role)::text ~~* '%Engineer%'::text)
+                                       Rows Removed by Filter: 101
+                                       Buffers: shared hit=3
+                                 ->  Hash  (cost=1.07..1.07 rows=1 width=23) (actual time=0.007..0.007 rows=1.00 loops=1)
+                                       Buckets: 1024  Batches: 1  Memory Usage: 9kB
+                                       Buffers: shared hit=1
+                                       ->  Seq Scan on department d  (cost=0.00..1.07 rows=1 width=23) (actual time=0.005..0.005 rows=1.00 loops=1)
+                                             Filter: ((name)::text = 'Platform Engineering'::text)
+                                             Rows Removed by Filter: 5
+                                             Buffers: shared hit=1
+ Planning:
+   Buffers: shared hit=273
+ Planning Time: 0.582 ms
+ Execution Time: 0.197 ms
+(40 rows)

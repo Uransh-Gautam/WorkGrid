@@ -1,0 +1,59 @@
+================================================================================
+WorkGrid - Database Management Systems (CP4)
+Query: 3.2 - Filter employees by role
+File: dbms/plans/13_filter_by_role.txt
+Database: PostgreSQL
+================================================================================
+
+-- 1. SQL Query:
+SELECT e.id,e.name,e.role,d.name department FROM employee e JOIN department d ON d.id=e.department_id WHERE e.role ILIKE '%Engineer%' ORDER BY d.name,e.name;
+
+-- 2. Query Execution Plan (With Indexes):
+QUERY PLAN                                                         
+----------------------------------------------------------------------------------------------------------------------------
+ Sort  (cost=12.83..13.18 rows=139 width=56) (actual time=0.418..0.424 rows=149.00 loops=1)
+   Sort Key: d.name, e.name
+   Sort Method: quicksort  Memory: 36kB
+   Buffers: shared hit=7
+   ->  Hash Join  (cost=1.14..7.88 rows=139 width=56) (actual time=0.026..0.247 rows=149.00 loops=1)
+         Hash Cond: (e.department_id = d.id)
+         Buffers: shared hit=4
+         ->  Seq Scan on employee e  (cost=0.00..6.12 rows=139 width=41) (actual time=0.009..0.205 rows=149.00 loops=1)
+               Filter: ((role)::text ~~* '%Engineer%'::text)
+               Rows Removed by Filter: 101
+               Buffers: shared hit=3
+         ->  Hash  (cost=1.06..1.06 rows=6 width=23) (actual time=0.009..0.010 rows=6.00 loops=1)
+               Buckets: 1024  Batches: 1  Memory Usage: 9kB
+               Buffers: shared hit=1
+               ->  Seq Scan on department d  (cost=0.00..1.06 rows=6 width=23) (actual time=0.003..0.004 rows=6.00 loops=1)
+                     Buffers: shared hit=1
+ Planning:
+   Buffers: shared hit=247
+ Planning Time: 1.083 ms
+ Execution Time: 0.503 ms
+(20 rows)
+
+-- 3. Query Execution Plan (Without Indexes - Baseline):
+QUERY PLAN                                                         
+----------------------------------------------------------------------------------------------------------------------------
+ Sort  (cost=12.83..13.18 rows=139 width=56) (actual time=0.226..0.229 rows=149.00 loops=1)
+   Sort Key: d.name, e.name
+   Sort Method: quicksort  Memory: 36kB
+   Buffers: shared hit=7
+   ->  Hash Join  (cost=1.14..7.88 rows=139 width=56) (actual time=0.018..0.122 rows=149.00 loops=1)
+         Hash Cond: (e.department_id = d.id)
+         Buffers: shared hit=4
+         ->  Seq Scan on employee e  (cost=0.00..6.12 rows=139 width=41) (actual time=0.006..0.098 rows=149.00 loops=1)
+               Filter: ((role)::text ~~* '%Engineer%'::text)
+               Rows Removed by Filter: 101
+               Buffers: shared hit=3
+         ->  Hash  (cost=1.06..1.06 rows=6 width=23) (actual time=0.007..0.007 rows=6.00 loops=1)
+               Buckets: 1024  Batches: 1  Memory Usage: 9kB
+               Buffers: shared hit=1
+               ->  Seq Scan on department d  (cost=0.00..1.06 rows=6 width=23) (actual time=0.001..0.002 rows=6.00 loops=1)
+                     Buffers: shared hit=1
+ Planning:
+   Buffers: shared hit=247
+ Planning Time: 0.498 ms
+ Execution Time: 0.255 ms
+(20 rows)

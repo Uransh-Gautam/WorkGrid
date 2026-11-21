@@ -1,0 +1,64 @@
+================================================================================
+WorkGrid - Database Management Systems (CP4)
+Query: 4.5 - Managers and number of direct reports
+File: dbms/plans/20_managers_report_count.txt
+Database: PostgreSQL
+================================================================================
+
+-- 1. SQL Query:
+SELECT m.id,m.name manager,COUNT(e.id) direct_reports FROM employee m JOIN employee e ON e.manager_id=m.id
+GROUP BY m.id,m.name ORDER BY direct_reports DESC,m.name;
+
+-- 2. Query Execution Plan (With Indexes):
+QUERY PLAN                                                             
+------------------------------------------------------------------------------------------------------------------------------------
+ Sort  (cost=28.50..29.12 rows=250 width=28) (actual time=0.084..0.085 rows=14.00 loops=1)
+   Sort Key: (count(e.id)) DESC, m.name
+   Sort Method: quicksort  Memory: 25kB
+   Buffers: shared hit=12
+   ->  HashAggregate  (cost=16.04..18.54 rows=250 width=28) (actual time=0.070..0.072 rows=14.00 loops=1)
+         Group Key: m.id
+         Batches: 1  Memory Usage: 48kB
+         Buffers: shared hit=6
+         ->  Hash Join  (cost=8.62..14.79 rows=250 width=24) (actual time=0.032..0.055 rows=249.00 loops=1)
+               Hash Cond: (e.manager_id = m.id)
+               Buffers: shared hit=6
+               ->  Seq Scan on employee e  (cost=0.00..5.50 rows=250 width=8) (actual time=0.003..0.008 rows=250.00 loops=1)
+                     Buffers: shared hit=3
+               ->  Hash  (cost=5.50..5.50 rows=250 width=20) (actual time=0.025..0.025 rows=250.00 loops=1)
+                     Buckets: 1024  Batches: 1  Memory Usage: 21kB
+                     Buffers: shared hit=3
+                     ->  Seq Scan on employee m  (cost=0.00..5.50 rows=250 width=20) (actual time=0.001..0.011 rows=250.00 loops=1)
+                           Buffers: shared hit=3
+ Planning:
+   Buffers: shared hit=143
+ Planning Time: 0.265 ms
+ Execution Time: 0.114 ms
+(22 rows)
+
+-- 3. Query Execution Plan (Without Indexes - Baseline):
+QUERY PLAN                                                             
+------------------------------------------------------------------------------------------------------------------------------------
+ Sort  (cost=28.50..29.12 rows=250 width=28) (actual time=0.084..0.085 rows=14.00 loops=1)
+   Sort Key: (count(e.id)) DESC, m.name
+   Sort Method: quicksort  Memory: 25kB
+   Buffers: shared hit=12
+   ->  HashAggregate  (cost=16.04..18.54 rows=250 width=28) (actual time=0.069..0.071 rows=14.00 loops=1)
+         Group Key: m.id
+         Batches: 1  Memory Usage: 48kB
+         Buffers: shared hit=6
+         ->  Hash Join  (cost=8.62..14.79 rows=250 width=24) (actual time=0.034..0.054 rows=249.00 loops=1)
+               Hash Cond: (e.manager_id = m.id)
+               Buffers: shared hit=6
+               ->  Seq Scan on employee e  (cost=0.00..5.50 rows=250 width=8) (actual time=0.004..0.008 rows=250.00 loops=1)
+                     Buffers: shared hit=3
+               ->  Hash  (cost=5.50..5.50 rows=250 width=20) (actual time=0.027..0.027 rows=250.00 loops=1)
+                     Buckets: 1024  Batches: 1  Memory Usage: 21kB
+                     Buffers: shared hit=3
+                     ->  Seq Scan on employee m  (cost=0.00..5.50 rows=250 width=20) (actual time=0.004..0.013 rows=250.00 loops=1)
+                           Buffers: shared hit=3
+ Planning:
+   Buffers: shared hit=143
+ Planning Time: 0.293 ms
+ Execution Time: 0.116 ms
+(22 rows)

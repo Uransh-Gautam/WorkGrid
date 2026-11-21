@@ -1,0 +1,59 @@
+================================================================================
+WorkGrid - Database Management Systems (CP4)
+Query: 2.4 - Employee hours available calculation
+File: dbms/plans/10_employee_hours_available.txt
+Database: PostgreSQL
+================================================================================
+
+-- 1. SQL Query:
+SELECT e.id,e.name,40-COALESCE(SUM(a.hours_allocated),0) hours_available
+FROM employee e LEFT JOIN allocation a ON a.employee_id=e.id AND a.status='active'
+WHERE e.id=6 GROUP BY e.id,e.name;
+
+-- 2. Query Execution Plan (With Indexes):
+QUERY PLAN                                                                   
+-----------------------------------------------------------------------------------------------------------------------------------------------
+ GroupAggregate  (cost=4.31..15.83 rows=1 width=28) (actual time=0.022..0.022 rows=1.00 loops=1)
+   Buffers: shared hit=8
+   ->  Nested Loop Left Join  (cost=4.31..15.81 rows=3 width=24) (actual time=0.011..0.020 rows=4.00 loops=1)
+         Buffers: shared hit=8
+         ->  Seq Scan on employee e  (cost=0.00..6.12 rows=1 width=20) (actual time=0.003..0.009 rows=1.00 loops=1)
+               Filter: (id = 6)
+               Rows Removed by Filter: 249
+               Buffers: shared hit=3
+         ->  Bitmap Heap Scan on allocation a  (cost=4.31..9.66 rows=3 width=8) (actual time=0.008..0.010 rows=4.00 loops=1)
+               Recheck Cond: (employee_id = 6)
+               Filter: ((status)::text = 'active'::text)
+               Rows Removed by Filter: 1
+               Heap Blocks: exact=3
+               Buffers: shared hit=5
+               ->  Bitmap Index Scan on idx_allocation_employee  (cost=0.00..4.31 rows=5 width=0) (actual time=0.003..0.003 rows=5.00 loops=1)
+                     Index Cond: (employee_id = 6)
+                     Index Searches: 1
+                     Buffers: shared hit=2
+ Planning:
+   Buffers: shared hit=176
+ Planning Time: 0.308 ms
+ Execution Time: 0.041 ms
+(22 rows)
+
+-- 3. Query Execution Plan (Without Indexes - Baseline):
+QUERY PLAN                                                      
+----------------------------------------------------------------------------------------------------------------------
+ GroupAggregate  (cost=0.00..20.18 rows=1 width=28) (actual time=0.036..0.037 rows=1.00 loops=1)
+   Buffers: shared hit=8
+   ->  Nested Loop Left Join  (cost=0.00..20.16 rows=3 width=24) (actual time=0.006..0.034 rows=4.00 loops=1)
+         Buffers: shared hit=8
+         ->  Seq Scan on employee e  (cost=0.00..6.12 rows=1 width=20) (actual time=0.003..0.009 rows=1.00 loops=1)
+               Filter: (id = 6)
+               Rows Removed by Filter: 249
+               Buffers: shared hit=3
+         ->  Seq Scan on allocation a  (cost=0.00..14.00 rows=3 width=8) (actual time=0.003..0.025 rows=4.00 loops=1)
+               Filter: (((status)::text = 'active'::text) AND (employee_id = 6))
+               Rows Removed by Filter: 596
+               Buffers: shared hit=5
+ Planning:
+   Buffers: shared hit=176
+ Planning Time: 0.327 ms
+ Execution Time: 0.054 ms
+(16 rows)

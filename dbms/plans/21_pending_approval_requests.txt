@@ -1,0 +1,136 @@
+================================================================================
+WorkGrid - Database Management Systems (CP4)
+Query: 5.2 - Pending approval requests with manager
+File: dbms/plans/21_pending_approval_requests.txt
+Database: PostgreSQL
+================================================================================
+
+-- 1. SQL Query:
+SELECT
+    r.id AS request_id,
+    req.name AS requester,
+    mgr.name AS requester_manager,
+    r.allocation_id,
+    r.requested_employee_id,
+    proposed_emp.name AS proposed_employee,
+    r.requested_project_id,
+    proposed_proj.name AS proposed_project,
+    r.requested_hours_allocated,
+    r.requested_start_date,
+    r.requested_end_date,
+    r.created_at,
+    NOW() - r.created_at AS waiting_for
+FROM approval_request r
+JOIN employee req
+    ON req.id = r.requested_by
+LEFT JOIN employee mgr
+    ON mgr.id = req.manager_id
+LEFT JOIN employee proposed_emp
+    ON proposed_emp.id = r.requested_employee_id
+LEFT JOIN project proposed_proj
+    ON proposed_proj.id = r.requested_project_id
+WHERE r.status = 'pending'
+ORDER BY r.created_at;
+
+-- 2. Query Execution Plan (With Indexes):
+QUERY PLAN                                                                                 
+---------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+ Sort  (cost=18.37..18.45 rows=34 width=123) (actual time=0.088..0.090 rows=34.00 loops=1)
+   Sort Key: r.created_at
+   Sort Method: quicksort  Memory: 29kB
+   Buffers: shared hit=33
+   ->  Hash Left Join  (cost=10.06..17.50 rows=34 width=123) (actual time=0.060..0.079 rows=34.00 loops=1)
+         Hash Cond: (r.requested_project_id = proposed_proj.id)
+         Buffers: shared hit=30
+         ->  Hash Right Join  (cost=7.71..14.80 rows=34 width=84) (actual time=0.045..0.061 rows=34.00 loops=1)
+               Hash Cond: (proposed_emp.id = r.requested_employee_id)
+               Buffers: shared hit=29
+               ->  Seq Scan on employee proposed_emp  (cost=0.00..5.50 rows=250 width=20) (actual time=0.002..0.008 rows=250.00 loops=1)
+                     Buffers: shared hit=3
+               ->  Hash  (cost=7.28..7.28 rows=34 width=68) (actual time=0.040..0.040 rows=34.00 loops=1)
+                     Buckets: 1024  Batches: 1  Memory Usage: 12kB
+                     Buffers: shared hit=26
+                     ->  Merge Join  (cost=4.53..7.28 rows=34 width=68) (actual time=0.024..0.036 rows=34.00 loops=1)
+                           Merge Cond: (req.id = r.requested_by)
+                           Buffers: shared hit=26
+                           ->  Nested Loop Left Join  (cost=0.30..27.74 rows=250 width=36) (actual time=0.006..0.016 rows=22.00 loops=1)
+                                 Buffers: shared hit=24
+                                 ->  Index Scan using employee_pkey on employee req  (cost=0.14..17.89 rows=250 width=24) (actual time=0.003..0.004 rows=22.00 loops=1)
+                                       Index Searches: 1
+                                       Buffers: shared hit=2
+                                 ->  Memoize  (cost=0.15..0.25 rows=1 width=20) (actual time=0.000..0.000 rows=0.95 loops=22)
+                                       Cache Key: req.manager_id
+                                       Cache Mode: logical
+                                       Hits: 10  Misses: 12  Evictions: 0  Overflows: 0  Memory Usage: 2kB
+                                       Buffers: shared hit=22
+                                       ->  Index Scan using employee_pkey on employee mgr  (cost=0.14..0.24 rows=1 width=20) (actual time=0.000..0.000 rows=0.92 loops=12)
+                                             Index Cond: (id = req.manager_id)
+                                             Index Searches: 11
+                                             Buffers: shared hit=22
+                           ->  Sort  (cost=4.11..4.20 rows=34 width=40) (actual time=0.014..0.015 rows=34.00 loops=1)
+                                 Sort Key: r.requested_by
+                                 Sort Method: quicksort  Memory: 27kB
+                                 Buffers: shared hit=2
+                                 ->  Seq Scan on approval_request r  (cost=0.00..3.25 rows=34 width=40) (actual time=0.003..0.008 rows=34.00 loops=1)
+                                       Filter: ((status)::text = 'pending'::text)
+                                       Rows Removed by Filter: 66
+                                       Buffers: shared hit=2
+         ->  Hash  (cost=1.60..1.60 rows=60 width=27) (actual time=0.007..0.007 rows=60.00 loops=1)
+               Buckets: 1024  Batches: 1  Memory Usage: 12kB
+               Buffers: shared hit=1
+               ->  Seq Scan on project proposed_proj  (cost=0.00..1.60 rows=60 width=27) (actual time=0.002..0.003 rows=60.00 loops=1)
+                     Buffers: shared hit=1
+ Planning:
+   Buffers: shared hit=405
+ Planning Time: 0.688 ms
+ Execution Time: 0.125 ms
+(49 rows)
+
+-- 3. Query Execution Plan (Without Indexes - Baseline):
+QUERY PLAN                                                                            
+------------------------------------------------------------------------------------------------------------------------------------------------------------------
+ Sort  (cost=30.93..31.01 rows=34 width=123) (actual time=0.105..0.106 rows=34.00 loops=1)
+   Sort Key: r.created_at
+   Sort Method: quicksort  Memory: 29kB
+   Buffers: shared hit=15
+   ->  Hash Left Join  (cost=22.31..30.06 rows=34 width=123) (actual time=0.076..0.094 rows=34.00 loops=1)
+         Hash Cond: (r.requested_project_id = proposed_proj.id)
+         Buffers: shared hit=12
+         ->  Hash Right Join  (cost=19.96..27.36 rows=34 width=84) (actual time=0.061..0.076 rows=34.00 loops=1)
+               Hash Cond: (mgr.id = req.manager_id)
+               Buffers: shared hit=11
+               ->  Seq Scan on employee mgr  (cost=0.00..5.50 rows=250 width=20) (actual time=0.001..0.005 rows=250.00 loops=1)
+                     Buffers: shared hit=3
+               ->  Hash  (cost=19.53..19.53 rows=34 width=72) (actual time=0.057..0.058 rows=34.00 loops=1)
+                     Buckets: 1024  Batches: 1  Memory Usage: 12kB
+                     Buffers: shared hit=8
+                     ->  Hash Join  (cost=11.19..19.53 rows=34 width=72) (actual time=0.042..0.054 rows=34.00 loops=1)
+                           Hash Cond: (req.id = r.requested_by)
+                           Buffers: shared hit=8
+                           ->  Seq Scan on employee req  (cost=0.00..5.50 rows=250 width=24) (actual time=0.002..0.007 rows=250.00 loops=1)
+                                 Buffers: shared hit=3
+                           ->  Hash  (cost=10.77..10.77 rows=34 width=56) (actual time=0.037..0.038 rows=34.00 loops=1)
+                                 Buckets: 1024  Batches: 1  Memory Usage: 12kB
+                                 Buffers: shared hit=5
+                                 ->  Hash Right Join  (cost=3.67..10.77 rows=34 width=56) (actual time=0.018..0.034 rows=34.00 loops=1)
+                                       Hash Cond: (proposed_emp.id = r.requested_employee_id)
+                                       Buffers: shared hit=5
+                                       ->  Seq Scan on employee proposed_emp  (cost=0.00..5.50 rows=250 width=20) (actual time=0.001..0.007 rows=250.00 loops=1)
+                                             Buffers: shared hit=3
+                                       ->  Hash  (cost=3.25..3.25 rows=34 width=40) (actual time=0.013..0.013 rows=34.00 loops=1)
+                                             Buckets: 1024  Batches: 1  Memory Usage: 11kB
+                                             Buffers: shared hit=2
+                                             ->  Seq Scan on approval_request r  (cost=0.00..3.25 rows=34 width=40) (actual time=0.004..0.010 rows=34.00 loops=1)
+                                                   Filter: ((status)::text = 'pending'::text)
+                                                   Rows Removed by Filter: 66
+                                                   Buffers: shared hit=2
+         ->  Hash  (cost=1.60..1.60 rows=60 width=27) (actual time=0.008..0.008 rows=60.00 loops=1)
+               Buckets: 1024  Batches: 1  Memory Usage: 12kB
+               Buffers: shared hit=1
+               ->  Seq Scan on project proposed_proj  (cost=0.00..1.60 rows=60 width=27) (actual time=0.003..0.004 rows=60.00 loops=1)
+                     Buffers: shared hit=1
+ Planning:
+   Buffers: shared hit=405
+ Planning Time: 0.683 ms
+ Execution Time: 0.137 ms
+(44 rows)
